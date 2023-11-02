@@ -21,11 +21,8 @@ import cn from 'classnames';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import Slider from '@react-native-community/slider';
 import History from '../components/History';
-import {Instance, Movie, clearTrash, getTranslationSeries} from '../logic/movie';
-interface VideoProps {
-  quality: string;
-  url: string;
-}
+import {Instance, Movie, getTranslationSeries, VideoProps, parseCdnUrl} from '../logic/movie';
+
 function WatchScreen() {
   useFocusEffect(
     useCallback(() => {
@@ -48,40 +45,24 @@ function WatchScreen() {
   const [isVisible, setVisible] = useState(false);
   const [visibleTimerId, setVTimerId] = useState<NodeJS.Timeout>();
   const [settingsVisible, setSettingsVisible] = useState(false);
-  const [videoUrl,setVideoUrl] = useState<VideoProps[]>([{quality:'fallback',url:'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'}]);
+  const [videoUrl,setVideoUrl] = useState<VideoProps[]>([{quality:'none',url:'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'}]);
   useEffect(() => {
     async function fetch() {
       // @ts-ignore
-      if (!route.params['movieid'] || !route.params['movietranslations']) {
-        Alert.alert('No translations');
+      if (!route.params['movie']) {
+        Alert.alert('No movie');
         nav.goBack();
         return;
       }
       // @ts-ignore
-      const movieid = route.params['movieid'] as string;
-      // @ts-ignore
-      const translation = route.params['movietranslations'] as Instance[]
-      console.log('found translation', translation);
-      const seasons = await getTranslationSeries(movieid,translation[0]);
+      const movie = route.params['movie'] as Movie;
+      console.log('received movie',movie);
+      const seasons = await getTranslationSeries(movie.id,movie.translators[0]);
       console.log('seasons l',seasons.length);
+      if (seasons.length == 0) return;
       const ep = seasons[0].episodes[0];
       const urlEncoded = ep.cdnUrl;
-      const urls = clearTrash(urlEncoded);
-      console.log('DECODED URLS',urls);
-      const urlsDecoded = urls.split(',');
-      const videos = urlsDecoded.map<VideoProps>(v => {
-        
-        const r = /\[(.*)\](.*):hls:/;
-        const egex = r.exec(v);
-        if (egex?.[0] == null)
-        return {quality: 'null', url: 'none'}
-        const quality = egex[1]
-        const url = egex[2]
-        return {quality, url}
-      });
-      for (const v of videos) {
-        console.log(v);
-      }
+      const videos = parseCdnUrl(urlEncoded);
       setVideoUrl(videos);
     }
     fetch();
@@ -114,7 +95,7 @@ function WatchScreen() {
     <View className="w-full h-full bg-blue-400">
       <Video
         className="absolute left-0 right-0 top-0 bottom-0 bg-blue-400"
-        playInBackground
+        
         resizeMode="contain"
         fullscreenOrientation="landscape"
         fullscreen
@@ -232,7 +213,9 @@ function WatchScreen() {
         visible={settingsVisible}
         hardwareAccelerated
         onRequestClose={() => setSettingsVisible(!settingsVisible)}>
-        <History />
+        <View>
+          <Text>Prikol</Text>
+        </View>
       </Modal>
     </View>
   );

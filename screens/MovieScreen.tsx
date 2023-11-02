@@ -38,7 +38,7 @@ function MovieScreen(/* {MovieObject as param}*/) {
   nav.setOptions({ title: movie?.name ?? "Loading" });
   function goWatchMovie() {
     // @ts-ignore
-    nav.navigate('watch',{movieid: movie?.id, movietranslations: movie?.getTranslations()});
+    nav.navigate('watch',{movie: movie});
   }
   return (
     <View>
