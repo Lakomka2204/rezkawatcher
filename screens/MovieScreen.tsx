@@ -10,12 +10,14 @@ import {
   Alert
 } from "react-native";
 import FontAwesomeIcon from "react-native-vector-icons/FontAwesome5";
-import { Movie, getHtmlFromURL } from "../logic/movie";
+import { Instance, Movie, getHtmlFromURL, getTranslationSeries, Season, Episode } from "../logic/movie";
 import cn from "classnames";
 import MovieProperty from "../components/MovieProperty";
 import { FlatList } from "react-native";
 import Rating from "../components/RatingBubble";
 import Button from "../components/Button";
+import DropDownPicker from "react-native-dropdown-picker";
+import { Dropdown } from "react-native-element-dropdown";
 function MovieScreen(/* {MovieObject as param}*/) {
   const nav = useNavigation();
   const route = useRoute();
@@ -27,18 +29,42 @@ function MovieScreen(/* {MovieObject as param}*/) {
   }
   // @ts-ignore
   const movieLink = route.params["link"] as string;
+  const [seasonLoading,setSeasonLoading] = useState(false);
+  const [translation,setTranslation] = useState<Instance>();
+  const [translations, setTranslations] = useState<Instance[]>([]);
   const [movie, setMovie] = useState<Movie>();
-  async function set() {
-    const html = await getHtmlFromURL(movieLink);
-    setMovie(new Movie(html));
-  }
+  const [seasons,setSeasons] = useState<Season[]>([]);
+  const [season,setSeason] = useState<Season>();
+  const [episode,setEpisode] = useState<Episode>();
   useEffect(() => {
+    async function set() {
+      const html = await getHtmlFromURL(movieLink);
+      const retrievedMovie = new Movie(html);
+      setMovie(retrievedMovie);
+      setTranslations(retrievedMovie.translators);
+    }
     if (!movie) set();
   }, []);
+  useEffect(() => {
+    async function get() {
+      try{
+        setSeasonLoading(true);
+        const tr = translation ?? translations[0];
+        if (tr) {
+          const seasons = await getTranslationSeries(movie?.id!,movie?.favs!,translation ?? translations[0]);
+          setSeasons(seasons);
+        }
+      }
+      finally {
+        setSeasonLoading(false);
+      }
+    }
+    get();
+  }, [translation]);
   nav.setOptions({ title: movie?.name ?? "Loading" });
   function goWatchMovie() {
     // @ts-ignore
-    nav.navigate('watch',{movie: movie});
+    nav.navigate('watch',{movie,translation, episode, season});
   }
   return (
     <View>
@@ -57,20 +83,46 @@ function MovieScreen(/* {MovieObject as param}*/) {
             {movie.originalName}
           </Text>
           <Image source={{uri: movie.thumbnail}} className={"h-96 w-60"} />
+          <View
+          className=" border-gray-500 border-2 rounded-lg m-4 p-1 w-10/12 z-10"
+          >
+            <Dropdown
+            data={translations}
+            labelField={"name"}
+            onChange={(s) => setTranslation(s)}
+            valueField={'id'}
+            placeholder="Select translation"
+            />
+          </View>
+          {seasonLoading ? <ActivityIndicator/> :
+          <View
+          className="flex flex-row w-10/12 items-center justify-center"
+          >
+            <View className="flex-grow border-gray-500 border-2 rounded-lg m-2 p-1 z-10">
+            <Dropdown data={seasons}
+            labelField={'name'}
+            valueField={'id'}
+            onChange={(s) => setSeason(s)}
+            placeholder="Season"
+            />
+            </View>
+            <View className="flex-grow border-gray-500 border-2 rounded-lg m-2 p-1 z-10">
+            <Dropdown
+            data={season?.episodes ?? []}
+            labelField={'name'}
+            valueField={'id'}
+            onChange={(e) => setEpisode(e)}
+            placeholder="Episode"
+            />
+            </View>
+          </View>
+          }
           <View className={'bg-yellow-200 border-gray-500 border-2 rounded-lg m-4 w-10/12'}>
           <Button onClick={goWatchMovie}>
             <Text className={'text-3xl p-1 text-center font-bold text-black'}>WATCH</Text>
           </Button>
           </View>
-          {/* <View className={"flex flex-row items-center"}>
-            <FlatList
-            contentContainerStyle={{flexDirection:'row', alignItems:'center', justifyContent:'center', gap:3}}
-             data={movie.ratings}
-             renderItem={(item) => (<Rating key={item.index} name={item.item.name} score={item.item.score}/>)}/>
-            
-          </View> */}
           <View className={'flex w-screen'}>
-            <MovieProperty name={'Release date'} value={movie.releaseDate ?? ""}/>
             <MovieProperty name={'Type'} value={movie.type}/>
             <MovieProperty name={'Description'} value={movie.description}/>
           </View>

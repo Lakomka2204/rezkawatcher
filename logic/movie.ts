@@ -31,7 +31,7 @@ export interface VideoProps {
   quality: VideoQuality;
   url: string;
 }
-class Episode extends Instance {
+export class Episode extends Instance {
   cdnUrl: string;
   quality: VideoQuality;
   constructor(cdnUrl: string, quality: VideoQuality) {
@@ -41,7 +41,7 @@ class Episode extends Instance {
     this.quality = quality;
   }
 }
-class Season extends Instance {
+export class Season extends Instance {
   translation: Instance;
   episodes: Episode[];
   constructor(episodes: Episode[], translation: Instance) {
@@ -78,7 +78,6 @@ export class PreviewMovie extends QuickMovie {
 
 export class Movie extends PreviewMovie {
   originalName: string;
-  ratings: Rating[];
   description: string;
   releaseDate?: string;
   translators: Instance[];
@@ -91,30 +90,11 @@ export class Movie extends PreviewMovie {
     this.thumbnail = getDOMMetaparam(dom, 'image');
     this.id = dom.getElementById('post_id')?.getAttribute('value')!;
     this.name = getDOMMetaparam(dom, 'title');
-    this.description = getDOMMetaparam(dom, 'description');
+    this.description = dom.querySelector('.b-post__description_text')?.textContent!;
     this.favs = dom.getElementById('ctrl_favs').getAttribute('value')!;
-    // this.props = new Dictionary();
-    // const filmInfo = dom.querySelectorAll(".b-post__info > tr > td");
-    // console.log('filmInfo',filmInfo.length);
-    // for (let i = 0; i < filmInfo.length - 1; i += 2) {
-    //   const prop = filmInfo[i].textContent!;
-    //   const val = filmInfo[i + 1];
-    //   this.props[prop] = val;
-    // }
-
     this.originalName = dom.querySelector(
       'div[itemprop="alternativeHeadline"]',
     )?.textContent!;
-    this.ratings = [];
-    // this.releaseDate = this.props['Дата выхода:'].textContent;
-    // this.props["Рейтинги:"]
-    //   ?.querySelectorAll("span.b-post__info_rates")
-    //   .forEach((x:HTMLElement) =>
-    //     this.ratings.push({
-    //       name: x.querySelector("a")?.textContent!,
-    //       score: Number(x.querySelector(".bold")!.textContent),
-    //     })
-    //   );
     const translators = dom.getElementById('translators-list')!;
     if (translators) {
       const list = translators.querySelectorAll('li');
@@ -254,7 +234,7 @@ export async function getTranslationSeries(
   try {
     const res = await axios.post(
       'https://rezka.ag/ajax/get_cdn_series/',
-      reqArgs,
+      reqArgs, {headers: {'Content-Type':'application/x-www-form-urlencoded'}}
     );
     if (!res.data.success)
       throw new Error(
@@ -309,11 +289,14 @@ export async function getTranslationSeries(
     return [];
   }
 }
-export async function getStream(id: string, season?: Season | number, episode?: Episode | number, translation?: Instance): Promise<VideoProps[]> {
+export async function getStream(id: string,
+  season?: Season | string,
+  episode?: Episode | string,
+  translation?: Instance | string): Promise<VideoProps[]> {
   try {
     const res = await axios.post('https://rezka.ag/ajax/get_cdn_series/',{
       id,
-      translator_id: translation?.id,
+      translator_id: translation instanceof Instance ? translation.id : translation,
       season: season instanceof Season ? season.id : season,
       episode: episode instanceof Episode ? episode.id : episode,
       action:"get_stream"
@@ -357,13 +340,11 @@ export function clearTrash(encoded: string): string {
   }
   const arr = encoded.replaceAll("#h","").split('//_//');
   let trashStr = arr.join('');
-  console.log('TBF',trashStr);
   for (let code of trashCodes) {
     const base = Buffer.from(code,'ascii').toString('base64');
     trashStr = trashStr.replaceAll(base,'');
   }
-  console.log('TBA',trashStr);
-  const fstr = Buffer.from(trashStr+"==",'base64url').toString('ascii');
+  const fstr = Buffer.from(trashStr+"==",'base64').toString('ascii');
   return fstr;
 }
 

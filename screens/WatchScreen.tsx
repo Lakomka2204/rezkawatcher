@@ -21,7 +21,7 @@ import cn from 'classnames';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import Slider from '@react-native-community/slider';
 import History from '../components/History';
-import {Instance, Movie, getTranslationSeries, VideoProps, parseCdnUrl} from '../logic/movie';
+import {Instance, Movie, getTranslationSeries, VideoProps, parseCdnUrl, getStream, Season, Episode} from '../logic/movie';
 
 function WatchScreen() {
   useFocusEffect(
@@ -45,6 +45,10 @@ function WatchScreen() {
   const [isVisible, setVisible] = useState(false);
   const [visibleTimerId, setVTimerId] = useState<NodeJS.Timeout>();
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const [infoText, setInfoText] = useState('Season X Episode Y Translation Z');
+  const [season,setSeason] = useState<Season>();
+  const [episode,setEpisode] = useState<Episode>();
+  const [translation,setTranslation] = useState<Instance>();
   const [videoUrl,setVideoUrl] = useState<VideoProps[]>([{quality:'none',url:'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'}]);
   useEffect(() => {
     async function fetch() {
@@ -56,13 +60,17 @@ function WatchScreen() {
       }
       // @ts-ignore
       const movie = route.params['movie'] as Movie;
-      console.log('received movie',movie);
-      const seasons = await getTranslationSeries(movie.id,movie.favs,movie.translators[0]);
-      console.log('seasons l',seasons.length);
-      if (seasons.length == 0) return;
-      const ep = seasons[0].episodes[0];
-      const urlEncoded = ep.cdnUrl;
-      const videos = parseCdnUrl(urlEncoded);
+      // @ts-ignore
+      const paramSeason = route.params['season'] as Season;
+      setSeason(paramSeason);
+      // @ts-ignore
+      const paramEpisode = route.params['episode'] as Episode;
+      setEpisode(paramEpisode)
+      // @ts-ignore
+      const paramTranslation = route.params['translation'] as Instance;
+      setTranslation(paramTranslation);
+
+      const videos = await getStream(movie.id,paramSeason.id,paramEpisode.id,paramTranslation.id);
       setVideoUrl(videos);
     }
     fetch();
@@ -145,7 +153,7 @@ function WatchScreen() {
             <View className="flex flex-row items-center justify-center">
               <Icon name={'bars'} solid={ccEnabled} size={30} color={'#fff'} />
               <Text className="text-white text-xl ml-1">
-                {'Season 1 Episode 2 Translation Original'}
+                {season?.name}{' '}{episode?.name}{' / '}{translation?.name}
               </Text>
             </View>
           </Button>
