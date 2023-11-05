@@ -57,7 +57,7 @@ function WatchScreen() {
       // @ts-ignore
       const movie = route.params['movie'] as Movie;
       console.log('received movie',movie);
-      const seasons = await getTranslationSeries(movie.id,movie.translators[0]);
+      const seasons = await getTranslationSeries(movie.id,movie.favs,movie.translators[0]);
       console.log('seasons l',seasons.length);
       if (seasons.length == 0) return;
       const ep = seasons[0].episodes[0];

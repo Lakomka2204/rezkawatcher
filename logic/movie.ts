@@ -1,4 +1,5 @@
 import axios from 'axios';
+import fs from 'node:fs';
 import {parse, HTMLElement, valid} from 'node-html-parser';
 class Dictionary<T> {
   [Key: string]: T;
@@ -238,7 +239,7 @@ export async function getHtmlFromURL(url: string): Promise<string> {
 }
 
 export async function getTranslationSeries(
-  id: string,
+  id: string, favs: string,
   translation: Instance,
 ): Promise<Season[]> {
   const reqArgs = {
@@ -248,7 +249,7 @@ export async function getTranslationSeries(
     is_ads:0,
     is_camrip:0,
     is_director:0,
-    favs: '505e5395-2a2b-44a3-b924-4db807aa1c99'
+    favs: favs
   };
   try {
     const res = await axios.post(
@@ -308,43 +309,65 @@ export async function getTranslationSeries(
     return [];
   }
 }
+export async function getStream(id: string, season?: Season | number, episode?: Episode | number, translation?: Instance): Promise<VideoProps[]> {
+  try {
+    const res = await axios.post('https://rezka.ag/ajax/get_cdn_series/',{
+      id,
+      translator_id: translation?.id,
+      season: season instanceof Season ? season.id : season,
+      episode: episode instanceof Episode ? episode.id : episode,
+      action:"get_stream"
+    })
+    return parseCdnUrl(res.data.url);
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+}
+export async function testCdn(url: string): Promise<boolean> {
+  try {
+
+    const res = await axios.head(url)
+    return res.status == 200;
+  }
+  catch (err) {
+    console.error(err);
+    return false;
+  }
+}
 export function parseCdnUrl(cdn: string): VideoProps[] {
   const decodedUrls = clearTrash(cdn);
   const decodedArr = decodedUrls.split(',');
   const finArr: VideoProps[] = [];
-  for (const url of decodedArr) {
-    const r = /\[(.*)\](.*):hls:/.exec(decodedUrls);
+  for (let url of decodedArr) {
+    const r = /\[(.*)\](.*):hls:(?:.*)or (.*)/.exec(url);
     if (r?.[0] == null) continue;
-    finArr.push({quality: r[1] as VideoQuality,url: r![2]});
+    const validUrl = [r![2], r![3]].filter(x => x.match(/^[\x00-\x7F]*$/))[0];
+    finArr.push({quality: r[1] as VideoQuality,url:validUrl});
   }
   return finArr;
 }
-function clearTrash(data: string): string {
-  const trashList: string[] = ['@', '#', '!', '^', '$'];
-  const trashCodesSet: string[] = [];
-
+export function clearTrash(encoded: string): string {
+  const trash = ['@', '#', '!', '^', '$'];
+  const trashCodes = [];
   for (let i = 2; i < 4; i++) {
-    for (const chars of generateCombinations(trashList, i)) {
-      const trashCombo = Buffer.from(chars.join('')).toString('base64');
-      trashCodesSet.push(trashCombo);
+    for (let chars of generateCombinations(trash,i)) {
+      trashCodes.push(chars.join(''));
     }
   }
-
-  const arr = data.replace('#h', '').split('//_//');
-  let trashString = arr.join('');
-
-  for (const code of trashCodesSet) {
-    const temp = Buffer.from(code, 'base64').toString('utf-8');
-    trashString = trashString.replace(temp, '');
+  const arr = encoded.replaceAll("#h","").split('//_//');
+  let trashStr = arr.join('');
+  console.log('TBF',trashStr);
+  for (let code of trashCodes) {
+    const base = Buffer.from(code,'ascii').toString('base64');
+    trashStr = trashStr.replaceAll(base,'');
   }
-
-  const finalString = Buffer.from(trashString + '==', 'base64').toString(
-    'utf-8',
-  );
-  return finalString;
+  console.log('TBA',trashStr);
+  const fstr = Buffer.from(trashStr+"==",'base64url').toString('ascii');
+  return fstr;
 }
 
-function generateCombinations<T>(elements: T[], length: number): T[][] {
+export function generateCombinations<T>(elements: T[], length: number): T[][] {
   if (length === 1) return elements.map(element => [element]);
 
   const result: T[][] = [];
