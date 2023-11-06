@@ -29,7 +29,7 @@ export default function App() {
           headerRight(props) {
             const nav = useNavigation()
             //@ts-ignore
-              return <Button title="movie" onPress={() => nav.navigate('watch')}></Button>
+              return <Button title="movie" onPress={() => nav.navigate('watch')}/>
           },}}/>
             <Stack.Screen name="sub" component={SearchResultsScreen}
             options={{title:"Search results",animation:'fade', statusBarAnimation:'fade'}}/>

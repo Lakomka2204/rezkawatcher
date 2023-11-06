@@ -23,6 +23,14 @@ export class Instance {
     this.name = name;
   }
 }
+export class Translation extends Instance {
+  is_director?: string;
+  is_ads?: string;
+  is_camrip?: string;
+  constructor(id: string = "Translation ID", name: string = "Translation Name") {
+    super(id,name);
+  }
+}
 export type Rating = {
   score: number;
   name: string;
@@ -42,9 +50,9 @@ export class Episode extends Instance {
   }
 }
 export class Season extends Instance {
-  translation: Instance;
+  translation: Translation;
   episodes: Episode[];
-  constructor(episodes: Episode[], translation: Instance) {
+  constructor(episodes: Episode[], translation: Translation) {
     super();
     this.name = 'Season';
     this.episodes = episodes;
@@ -80,7 +88,7 @@ export class Movie extends PreviewMovie {
   originalName: string;
   description: string;
   releaseDate?: string;
-  translators: Instance[];
+  translators: Translation[];
   favs: string;
   constructor(html: string) {
     super('', true, '', 'none');
@@ -98,11 +106,14 @@ export class Movie extends PreviewMovie {
     const translators = dom.getElementById('translators-list')!;
     if (translators) {
       const list = translators.querySelectorAll('li');
-      const retList: Instance[] = [];
+      const retList: Translation[] = [];
       list.forEach(x => {
         retList.push({
           id: x.getAttribute('data-translator_id')!,
           name: x.textContent!.trim(),
+          is_ads: x.getAttribute('data-ads'),
+          is_camrip: x.getAttribute('data-camrip'),
+          is_director: x.getAttribute('data-director')
         });
       });
       this.translators = retList;
@@ -220,15 +231,15 @@ export async function getHtmlFromURL(url: string): Promise<string> {
 
 export async function getTranslationSeries(
   id: string, favs: string,
-  translation: Instance,
+  translation: Translation,
 ): Promise<Season[]> {
   const reqArgs = {
     id,
     translator_id: translation.id,
     action: 'get_episodes',
-    is_ads:0,
-    is_camrip:0,
-    is_director:0,
+    is_ads:translation.is_ads ?? 0,
+    is_camrip:translation.is_camrip ?? 0,
+    is_director:translation.is_director ?? 0,
     favs: favs
   };
   try {
@@ -236,10 +247,10 @@ export async function getTranslationSeries(
       'https://rezka.ag/ajax/get_cdn_series/',
       reqArgs, {headers: {'Content-Type':'application/x-www-form-urlencoded'}}
     );
-    if (!res.data.success)
-      throw new Error(
-        `Could not retrieve seasons, episodes for specified translation: ${res.data.message}`,
-      );
+    if (!res.data.success) {
+      // console.warn("Could not retrieve seasons, eisodes, for secified translation:",res.data.message);
+      return [];
+    }
     const seasonsDOM = parse(res.data.seasons);
     const seasonNodes = seasonsDOM.querySelectorAll('li');
     const seasons: any[] = [];
@@ -289,18 +300,48 @@ export async function getTranslationSeries(
     return [];
   }
 }
+
+export async function getMovie(id: string,favs?:string,translation?: Translation)
+  : Promise<VideoProps[]> {
+  try {
+    const res = await axios.post('https://rezka.ag/ajax/get_cdn_series/', {
+      id,
+      translator_id: translation?.id,
+      favs,
+      is_ads: translation?.is_ads ?? '0',
+      is_director: translation?.is_director ?? '0',
+      is_camrip: translation?.is_camrip ?? '0',
+      action:"get_movie",
+    })
+    if (!res.data.success) {
+      console.error("Could not retrieve movie:",res.data.message);
+      return [];
+    }
+    return parseCdnUrl(res.data.url);
+  } 
+  catch (err) {
+    console.error(err);
+    return [];
+  }
+}
+
 export async function getStream(id: string,
   season?: Season | string,
   episode?: Episode | string,
-  translation?: Instance | string): Promise<VideoProps[]> {
+  translation?: Translation | string): Promise<VideoProps[]> {
   try {
     const res = await axios.post('https://rezka.ag/ajax/get_cdn_series/',{
       id,
-      translator_id: translation instanceof Instance ? translation.id : translation,
+      translator_id: translation instanceof Translation ? translation.id : translation,
       season: season instanceof Season ? season.id : season,
       episode: episode instanceof Episode ? episode.id : episode,
       action:"get_stream"
-    })
+    });
+
+    if (!res.data.success) {
+      console.error("Could not retrieve stream:",res.data.message);
+      return []
+    }
     return parseCdnUrl(res.data.url);
   } catch (err) {
     console.error(err);
@@ -360,4 +401,16 @@ export function generateCombinations<T>(elements: T[], length: number): T[][] {
   }
 
   return result;
+}
+
+export function getTime(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = (seconds % 60).toFixed();
+
+  const formattedHours = String(hours).padStart(2, '0');
+  const formattedMinutes = String(minutes).padStart(2, '0');
+  const formattedSeconds = String(remainingSeconds).padStart(2, '0');
+
+  return `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
 }

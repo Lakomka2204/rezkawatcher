@@ -10,15 +10,14 @@ import {
   Alert
 } from "react-native";
 import FontAwesomeIcon from "react-native-vector-icons/FontAwesome5";
-import { Instance, Movie, getHtmlFromURL, getTranslationSeries, Season, Episode } from "../logic/movie";
+import { Movie, getHtmlFromURL, getTranslationSeries, Season, Episode, Translation } from "../logic/movie";
 import cn from "classnames";
 import MovieProperty from "../components/MovieProperty";
 import { FlatList } from "react-native";
 import Rating from "../components/RatingBubble";
 import Button from "../components/Button";
-import DropDownPicker from "react-native-dropdown-picker";
 import { Dropdown } from "react-native-element-dropdown";
-function MovieScreen(/* {MovieObject as param}*/) {
+function MovieScreen() {
   const nav = useNavigation();
   const route = useRoute();
   // @ts-ignore
@@ -30,8 +29,8 @@ function MovieScreen(/* {MovieObject as param}*/) {
   // @ts-ignore
   const movieLink = route.params["link"] as string;
   const [seasonLoading,setSeasonLoading] = useState(false);
-  const [translation,setTranslation] = useState<Instance>();
-  const [translations, setTranslations] = useState<Instance[]>([]);
+  const [translation,setTranslation] = useState<Translation>();
+  const [translations, setTranslations] = useState<Translation[]>([]);
   const [movie, setMovie] = useState<Movie>();
   const [seasons,setSeasons] = useState<Season[]>([]);
   const [season,setSeason] = useState<Season>();
@@ -63,6 +62,9 @@ function MovieScreen(/* {MovieObject as param}*/) {
   }, [translation]);
   nav.setOptions({ title: movie?.name ?? "Loading" });
   function goWatchMovie() {
+    if (!translation) {
+      return Alert.alert("No translation","Please select translation");
+    }
     // @ts-ignore
     nav.navigate('watch',{movie,translation, episode, season});
   }
@@ -95,6 +97,7 @@ function MovieScreen(/* {MovieObject as param}*/) {
             />
           </View>
           {seasonLoading ? <ActivityIndicator/> :
+          seasons.length > 0 &&
           <View
           className="flex flex-row w-10/12 items-center justify-center"
           >

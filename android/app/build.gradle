@@ -119,5 +119,11 @@ dependencies {
         implementation jscFlavor
     }
 }
-
+allprojects {
+    repositories {
+        maven {
+            url "$rootDir/../node_modules/react-native-video-cache/android/libs"
+        }
+    }
+}
 apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)
