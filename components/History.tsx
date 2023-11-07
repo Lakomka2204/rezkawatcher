@@ -1,4 +1,4 @@
-import { Button, Text, TextInput, View } from "react-native";
+import { Text, View } from "react-native";
 
 function History() {
   

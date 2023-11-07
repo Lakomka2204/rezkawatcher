@@ -11,9 +11,9 @@
   },
   "dependencies": {
     "@react-native-community/slider": "^4.4.3",
-    "@react-navigation/native": "^6.1.8",
+    "@react-navigation/native": "^6.1.9",
     "@react-navigation/native-stack": "^6.9.14",
-    "axios": "^1.5.1",
+    "axios": "^1.6.0",
     "base-64": "^1.0.0",
     "classnames": "^2.3.2",
     "itertools": "^2.1.2",

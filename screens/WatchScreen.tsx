@@ -22,9 +22,21 @@ import cn from 'classnames';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import Slider from '@react-native-community/slider';
 import History from '../components/History';
-import {Instance, Movie, getTranslationSeries, VideoProps, parseCdnUrl, getStream, Season, Episode, Translation, getMovie, getTime} from '../logic/movie';
+import {
+  Instance,
+  Movie,
+  getTranslationSeries,
+  VideoProps,
+  parseCdnUrl,
+  getStream,
+  Season,
+  Episode,
+  Translation,
+  getMovie,
+  getTime,
+} from '../logic/movie';
 import convert from 'react-native-video-cache';
-import { Dropdown, IDropdownRef } from 'react-native-element-dropdown';
+import {Dropdown, IDropdownRef} from 'react-native-element-dropdown';
 
 function WatchScreen() {
   useFocusEffect(
@@ -49,13 +61,14 @@ function WatchScreen() {
   const [isVisible, setVisible] = useState(false);
   const [visibleTimerId, setVTimerId] = useState<NodeJS.Timeout>();
   const [settingsVisible, setSettingsVisible] = useState(false);
-  const [season,setSeason] = useState<Season>();
-  const [episode,setEpisode] = useState<Episode>();
-  const [translation,setTranslation] = useState<Translation>();
-  const [isLoading,setLoading] = useState(false);
+  const [season, setSeason] = useState<Season>();
+  const [episode, setEpisode] = useState<Episode>();
+  const [translation, setTranslation] = useState<Translation>();
+  const [isLoading, setLoading] = useState(false);
   const [movie, setMovie] = useState<Movie>();
-  const [currentVideo, setCurrentVideo] = useState<VideoProps>({quality:'none',url:'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'});
-  const [videoUrl,setVideoUrl] = useState<VideoProps[]>([currentVideo]);
+  const [currentVideo, setCurrentVideo] = useState<VideoProps>();
+  const [videoUrl, setVideoUrl] = useState<VideoProps[]>([]);
+  const [cachedUrl, setCached] = useState('');
   useEffect(() => {
     async function fetch() {
       // @ts-ignore
@@ -83,22 +96,26 @@ function WatchScreen() {
     async function updateMedia() {
       if (season && episode) {
         if (!movie) return;
-        const videos = await getStream(movie?.id,season?.id,episode?.id,translation?.id);
+        const videos = await getStream(
+          movie?.id,
+          season?.id,
+          episode?.id,
+          translation?.id,
+        );
         setVideoUrl(videos);
-      }
-      else {
+      } else {
         if (!movie) return;
-        const movies = await getMovie(movie?.id,movie?.favs,translation);
+        const movies = await getMovie(movie?.id, movie?.favs, translation);
         setVideoUrl(movies);
       }
     }
     updateMedia();
-  },[episode,season,translation]);
-
+  }, [episode, season, translation]);
   useEffect(() => {
+    if (videoUrl.length == 0) return;
+    setCurrentVideo(videoUrl[0]);
     player.current?.seek(0);
-  },[videoUrl]);
-  
+  }, [videoUrl]);
   function handleRelease() {
     setVTimerId(
       setTimeout(() => {
@@ -115,30 +132,34 @@ function WatchScreen() {
     else setVisible(true);
   }
   useEffect(() => {
-    console.log('trying to seek',isLoading);
-    if (!isLoading)
-      player.current?.seek(currentTime);
-  },[isLoading]);
+    console.log('trying to seek', isLoading);
+    if (!isLoading) player.current?.seek(currentTime);
+  }, [isLoading]);
   useEffect(() => {
     return () => {
       if (visibleTimerId) clearTimeout(visibleTimerId);
     };
   }, [visibleTimerId]);
+  useEffect(() => {
+    if (currentVideo?.url) setCached(convert(currentVideo?.url));
+  }, [currentVideo]);
   return (
     <View className="w-full h-full bg-blue-400">
       <Video
         className="absolute left-0 right-0 top-0 bottom-0 bg-blue-400"
-        
         resizeMode="contain"
         fullscreenOrientation="landscape"
         fullscreen
         allowsExternalPlayback
-        source={{uri: convert(currentVideo?.url)}}
+        source={{uri: cachedUrl}}
         ref={player}
         paused={paused}
         muted={muted}
         onProgress={p => setCurrentTime(p.currentTime)}
-        onLoad={data => {setTotalTime(data.duration); setLoading(false)}}
+        onLoad={data => {
+          setTotalTime(data.duration);
+          setLoading(false);
+        }}
         onLoadStart={() => setLoading(true)}
         onEnd={() => {
           player.current?.seek(0);
@@ -164,9 +185,11 @@ function WatchScreen() {
               'ml-auto mr-auto mt-auto mb-auto',
               'bg-black opacity-90 rounded-md py-2 px-8',
             )}>
-            {isLoading ? <ActivityIndicator size={'large'}/> :
-            <Icon name={paused ? 'play' : 'pause'} size={64} color={'#fff'} />
-            }
+            {isLoading ? (
+              <ActivityIndicator size={'large'} />
+            ) : (
+              <Icon name={paused ? 'play' : 'pause'} size={64} color={'#fff'} />
+            )}
           </View>
         )}
       </Pressable>
@@ -181,7 +204,7 @@ function WatchScreen() {
             <View className="flex flex-row items-center justify-center">
               <Icon name={'bars'} solid={ccEnabled} size={30} color={'#fff'} />
               <Text className="text-white text-xl ml-1">
-                {season?.name}{' '}{episode?.name}{' '}{translation?.name}
+                {season?.name} {episode?.name} {translation?.name}
               </Text>
             </View>
           </Button>
@@ -193,7 +216,6 @@ function WatchScreen() {
             'absolute right-1 left-1 bottom-1 bg-black',
             'opacity-80 border-2 border-white rounded-md flex flex-row px-4 items-center justify-between',
           )}>
-
           <Text className="text-white flex-grow-0">
             {getTime(currentTime)}
             {' / '}
@@ -225,25 +247,21 @@ function WatchScreen() {
           </View>
           <View className="flex-grow-0">
             <Dropdown
-            ref={qualityDropdown}
-            data={videoUrl}
-            labelField='quality'
-            valueField='url'
-            mode='modal'
-            autoScroll
-            dropdownPosition='bottom'
-            
-            keyboardAvoiding
-            renderRightIcon={(v) => null}
-            renderLeftIcon={(v) => <Button onClick={() => qualityDropdown.current?.open()}>
-            <Icon
-            
-              name={'cog'}
-              size={30}
-              color={'#fff'}
-            />
-          </Button>}
-            onChange={(changedItem) => setCurrentVideo(changedItem)}
+              ref={qualityDropdown}
+              data={videoUrl}
+              labelField="quality"
+              valueField="url"
+              mode="modal"
+              autoScroll
+              dropdownPosition="bottom"
+              keyboardAvoiding
+              renderRightIcon={v => null}
+              renderLeftIcon={v => (
+                <Button onClick={() => qualityDropdown.current?.open()}>
+                  <Icon name={'cog'} size={30} color={'#fff'} />
+                </Button>
+              )}
+              onChange={changedItem => setCurrentVideo(changedItem)}
             />
           </View>
           <View className="flex-grow-0">
