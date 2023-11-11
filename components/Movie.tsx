@@ -19,7 +19,7 @@ const Movie: React.FC<{movie: PreviewMovie}> = ({movie}) => {
   const nav = useNavigation<NativeStackNavigationProp<NavigationProps>>();
   return (
     <Button
-      onClick={() => nav.navigate('mov', {link: movie.url})}
+      onClick={() => nav.push('mov', {link: movie.url})}
       disabled={!movie.enabled}
       className={cn('z-10 bg-slate-300')}>
       {movie.thumbnail && (

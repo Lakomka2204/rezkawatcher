@@ -77,7 +77,7 @@ function MovieScreen() {
     if (!translation) {
       return Alert.alert('No translation', 'Please select translation');
     }
-    nav.navigate('watch', {movie: movie!, translation, episode, season});
+    if (movie) nav.push('watch', {movie: movie, translation, episode, season});
   }
   return (
     <View>

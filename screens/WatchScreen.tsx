@@ -2,16 +2,15 @@ import React, {useEffect, useRef, useState} from 'react';
 import {
   ActivityIndicator,
   Alert,
-  GestureResponderEvent,
   Modal,
   Pressable,
   StatusBar,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import {useCallback} from 'react';
 import {
+  RouteProp,
   useFocusEffect,
   useNavigation,
   useRoute,
@@ -21,13 +20,10 @@ import Button from '../components/Button';
 import cn from 'classnames';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import Slider from '@react-native-community/slider';
-import History from '../components/History';
 import {
-  Instance,
   Movie,
   getTranslationSeries,
   VideoProps,
-  parseCdnUrl,
   getStream,
   Season,
   Episode,
@@ -37,6 +33,7 @@ import {
 } from '../logic/movie';
 import convert from 'react-native-video-cache';
 import {Dropdown, IDropdownRef} from 'react-native-element-dropdown';
+import {NavigationProps} from '../App';
 
 function WatchScreen() {
   useFocusEffect(
@@ -48,7 +45,7 @@ function WatchScreen() {
     }, []),
   );
   const timeout = 6000;
-  const route = useRoute();
+  const route = useRoute<RouteProp<NavigationProps>>();
   const nav = useNavigation();
   const player = useRef<Video>(null);
   const qualityDropdown = useRef<IDropdownRef>(null);
@@ -68,12 +65,14 @@ function WatchScreen() {
   const [movie, setMovie] = useState<Movie>();
   const [currentVideo, setCurrentVideo] = useState<VideoProps>();
   const [videoUrl, setVideoUrl] = useState<VideoProps[]>([]);
-  const [cachedUrl, setCached] = useState('');
+  const [cachedUrl, setCached] = useState(
+    'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+  );
   useEffect(() => {
     async function fetch() {
       // @ts-ignore
       if (!route.params['movie']) {
-        Alert.alert('No movie');
+        Alert.alert('No movie was provided!');
         nav.goBack();
         return;
       }
@@ -128,11 +127,9 @@ function WatchScreen() {
     if (visibleTimerId) clearTimeout(visibleTimerId);
   }
   function handleGeneralTouch() {
-    if (isVisible) setPause(!paused);
-    else setVisible(true);
+    setVisible(!isVisible);
   }
   useEffect(() => {
-    console.log('trying to seek', isLoading);
     if (!isLoading) player.current?.seek(currentTime);
   }, [isLoading]);
   useEffect(() => {
@@ -167,33 +164,51 @@ function WatchScreen() {
         }}
         onError={e => console.log('VP ERROR', e.error.errorString)}
       />
-
       <Pressable
         onPress={handleGeneralTouch}
-        onLongPress={() => setVisible(!isVisible)}
         onPressIn={handlePress}
         onPressOut={handleRelease}
         android_disableSound
         className={cn(
-          'absolute align-items-center ',
-          'top-8 bottom-8 left-24 right-24',
-          'self-center text-center mb-0 flex flex-col',
+          'absolute top-8 bottom-8 left-8 right-8 flex-1 justify-center',
         )}>
         {isVisible && (
-          <View
-            className={cn(
-              'ml-auto mr-auto mt-auto mb-auto',
-              'bg-black opacity-90 rounded-md py-2 px-8',
-            )}>
-            {isLoading ? (
-              <ActivityIndicator size={'large'} />
-            ) : (
-              <Icon name={paused ? 'play' : 'pause'} size={64} color={'#fff'} />
-            )}
+          <View className="flex flex-row items-center justify-around">
+            <Pressable
+              android_disableSound
+              onPress={() => {
+                if (!isLoading) player.current?.seek(currentTime - 5);
+              }} //todo replace with changeable value
+              className={cn('bg-black opacity-90 rounded-md py-2 px-8')}>
+              <Icon name={'backward'} size={64} color={'#fff'} />
+            </Pressable>
+            <Pressable
+              android_disableSound
+              onPress={() => {
+                if (!isLoading) setPause(!paused);
+              }}
+              className={cn('bg-black opacity-90 rounded-md py-2 px-8')}>
+              {isLoading ? (
+                <ActivityIndicator size={'large'} />
+              ) : (
+                <Icon
+                  name={paused ? 'play' : 'pause'}
+                  size={64}
+                  color={'#fff'}
+                />
+              )}
+            </Pressable>
+            <Pressable
+              android_disableSound
+              onPress={() => {
+                if (!isLoading) player.current?.seek(currentTime + 5);
+              }} //todo replace with changeable value
+              className={cn('bg-black opacity-90 rounded-md py-2 px-8')}>
+              <Icon name={'forward'} size={64} color={'#fff'} />
+            </Pressable>
           </View>
         )}
       </Pressable>
-      <Pressable></Pressable>
       {isVisible && (
         <View
           className={cn(

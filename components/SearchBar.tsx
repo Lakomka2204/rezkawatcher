@@ -7,6 +7,8 @@ import {
   TAutocompleteDropdownItem,
 } from 'react-native-autocomplete-dropdown';
 import {quickSearch} from '../logic/movie';
+import {NavigationProps} from '../App';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
 interface Result {
   id: string;
@@ -20,7 +22,7 @@ function SearchBar() {
   const [suggestionsList, setSuggestionsList] = useState<Result[]>([]);
   const [query, setQuery] = useState('');
   const [event, setEvent] = useState<Event>('none');
-  const navigation = useNavigation();
+  const nav = useNavigation<NativeStackNavigationProp<NavigationProps>>();
 
   const getSuggestions = useCallback((inputQuery: string) => {
     setQuery(inputQuery);
@@ -59,23 +61,19 @@ function SearchBar() {
           item => item.title === query,
         )?.id;
         if (selectedId) {
-          React.useEffect(() => {
-            // @ts-ignore
-            navigation.navigate('mov', {link: selectedId});
-          }, []);
+          nav.push('mov', {link: selectedId});
         }
         break;
       case 'submit':
         if (query?.trim()) {
-          // @ts-ignore
-          navigation.navigate('sub', {query});
+          nav.push('sub', {query, page: 1});
         }
         break;
       default:
         break;
     }
     setEvent('none');
-  }, [event, query, suggestionsList, navigation]);
+  }, [event, query, suggestionsList, nav]);
 
   const handleItemSelect = (item: TAutocompleteDropdownItem) => {
     if (item) {
@@ -94,10 +92,10 @@ function SearchBar() {
     <AutocompleteDropdown
       direction={Platform.select({ios: 'down'})}
       dataSet={suggestionsList}
-      onChangeText={getSuggestions}
-      onSelectItem={handleItemSelect}
+      onChangeText={t => getSuggestions(t)}
+      onSelectItem={i => handleItemSelect(i)}
       closeOnSubmit={true}
-      onSubmit={handleQuerySubmit}
+      onSubmit={() => handleQuerySubmit()}
       useFilter={false}
       loading={loading}
       textInputProps={{
@@ -111,9 +109,12 @@ function SearchBar() {
         borderWidth: 1,
         backgroundColor: 'white',
       }}
+      containerStyle={{
+        width: '80%',
+      }}
       debounce={500}
-      onClear={clearSuggestions}
-      showChevron={true}
+      onClear={() => clearSuggestions()}
+      showChevron={false}
       clearOnFocus={false}
       closeOnBlur={false}
     />
