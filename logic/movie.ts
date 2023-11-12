@@ -1,9 +1,6 @@
 import axios from 'axios';
 import fs from 'node:fs';
 import {parse, HTMLElement, valid} from 'node-html-parser';
-class Dictionary<T> {
-  [Key: string]: T;
-}
 
 export type MovieType = 'none' | 'animation' | 'cartoons' | 'series' | 'films';
 
@@ -243,64 +240,59 @@ export async function getTranslationSeries(
     is_director: translation.is_director ?? 0,
     favs: favs,
   };
-  try {
-    const res = await axios.post(
-      'https://rezka.ag/ajax/get_cdn_series/',
-      reqArgs,
-      {headers: {'Content-Type': 'application/x-www-form-urlencoded'}},
-    );
-    if (!res.data.success) {
-      // console.warn("Could not retrieve seasons, eisodes, for secified translation:",res.data.message);
-      return [];
-    }
-    const seasonsDOM = parse(res.data.seasons);
-    const seasonNodes = seasonsDOM.querySelectorAll('li');
-    const seasons: any[] = [];
-    seasonNodes.forEach(x =>
-      seasons.push({
-        id: x.getAttribute('data-tab_id'),
-        name: x.textContent,
-      }),
-    );
-
-    const episodesDOM = parse(res.data.episodes);
-    const episodeNodes = episodesDOM.querySelectorAll('li');
-    const episodes: any[] = [];
-    episodeNodes.forEach(x =>
-      episodes.push({
-        id: x.getAttribute('data-episode_id'),
-        season: x.getAttribute('data-season_id'),
-        movie: x.getAttribute('data-id'),
-        name: x.textContent,
-        quality: (x.getAttribute('data-cdn_quality') == 'null'
-          ? 'none'
-          : x.getAttribute('data-cdn_quality')) as VideoQuality,
-        cdn:
-          x.getAttribute('data-cdn_url') == 'null'
-            ? 'none'
-            : x.getAttribute('data-cdn_url'),
-      }),
-    );
-    const returnList: Season[] = [];
-    for (const season of seasons) {
-      const seasonEpisodes = episodes.filter(x => x.season === season.id);
-      returnList.push({
-        id: season.id!,
-        name: season.name,
-        episodes: seasonEpisodes.map(x => ({
-          id: x.id!,
-          name: x.name!,
-          cdnUrl: x.cdn!,
-          quality: x.quality! as VideoQuality,
-        })),
-        translation: translation,
-      });
-    }
-    return returnList;
-  } catch (err) {
-    console.error(err);
+  const res = await axios.post(
+    'https://rezka.ag/ajax/get_cdn_series/',
+    reqArgs,
+    {headers: {'Content-Type': 'application/x-www-form-urlencoded'}},
+  );
+  if (!res.data.success) {
+    // console.warn("Could not retrieve seasons, eisodes, for secified translation:",res.data.message);
     return [];
   }
+  const seasonsDOM = parse(res.data.seasons);
+  const seasonNodes = seasonsDOM.querySelectorAll('li');
+  const seasons: any[] = [];
+  seasonNodes.forEach(x =>
+    seasons.push({
+      id: x.getAttribute('data-tab_id'),
+      name: x.textContent,
+    }),
+  );
+
+  const episodesDOM = parse(res.data.episodes);
+  const episodeNodes = episodesDOM.querySelectorAll('li');
+  const episodes: any[] = [];
+  episodeNodes.forEach(x =>
+    episodes.push({
+      id: x.getAttribute('data-episode_id'),
+      season: x.getAttribute('data-season_id'),
+      movie: x.getAttribute('data-id'),
+      name: x.textContent,
+      quality: (x.getAttribute('data-cdn_quality') == 'null'
+        ? 'none'
+        : x.getAttribute('data-cdn_quality')) as VideoQuality,
+      cdn:
+        x.getAttribute('data-cdn_url') == 'null'
+          ? 'none'
+          : x.getAttribute('data-cdn_url'),
+    }),
+  );
+  const returnList: Season[] = [];
+  for (const season of seasons) {
+    const seasonEpisodes = episodes.filter(x => x.season === season.id);
+    returnList.push({
+      id: season.id!,
+      name: season.name,
+      episodes: seasonEpisodes.map(x => ({
+        id: x.id!,
+        name: x.name!,
+        cdnUrl: x.cdn!,
+        quality: x.quality! as VideoQuality,
+      })),
+      translation: translation,
+    });
+  }
+  return returnList;
 }
 
 export async function getMovie(

@@ -2,9 +2,12 @@ import React, {useEffect, useRef, useState} from 'react';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Modal,
   Pressable,
+  ScrollView,
   StatusBar,
+  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -34,7 +37,8 @@ import {
 import convert from 'react-native-video-cache';
 import {Dropdown, IDropdownRef} from 'react-native-element-dropdown';
 import {NavigationProps} from '../App';
-
+import Playlist from '../components/Playlist';
+let isSeries = false;
 function WatchScreen() {
   useFocusEffect(
     useCallback(() => {
@@ -57,7 +61,7 @@ function WatchScreen() {
   const [ccEnabled, setCcEnabled] = useState(false);
   const [isVisible, setVisible] = useState(false);
   const [visibleTimerId, setVTimerId] = useState<NodeJS.Timeout>();
-  const [settingsVisible, setSettingsVisible] = useState(false);
+  const [playlistVisible, setPlaylistVisible] = useState(false);
   const [season, setSeason] = useState<Season>();
   const [episode, setEpisode] = useState<Episode>();
   const [translation, setTranslation] = useState<Translation>();
@@ -65,34 +69,35 @@ function WatchScreen() {
   const [movie, setMovie] = useState<Movie>();
   const [currentVideo, setCurrentVideo] = useState<VideoProps>();
   const [videoUrl, setVideoUrl] = useState<VideoProps[]>([]);
+  const [episodeIndex, setEpIndex] = useState(-1);
   const [cachedUrl, setCached] = useState(
     'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
   );
+
   useEffect(() => {
-    async function fetch() {
-      // @ts-ignore
-      if (!route.params['movie']) {
-        Alert.alert('No movie was provided!');
-        nav.goBack();
-        return;
-      }
-      // @ts-ignore
-      const paramMovie = route.params['movie'] as Movie;
-      setMovie(paramMovie);
-      // @ts-ignore
-      const paramSeason = route.params['season'] as Season;
-      setSeason(paramSeason);
-      // @ts-ignore
-      const paramEpisode = route.params['episode'] as Episode;
-      setEpisode(paramEpisode);
-      // @ts-ignore
-      const paramTranslation = route.params['translation'] as Translation;
-      setTranslation(paramTranslation);
+    // @ts-ignore
+    if (!route.params['movie']) {
+      Alert.alert('No movie was provided!');
+      nav.goBack();
+      return;
     }
-    fetch();
+    // @ts-ignore
+    const paramMovie = route.params['movie'] as Movie;
+    setMovie(paramMovie);
+    // @ts-ignore
+    const paramSeason = route.params['season'] as Season;
+    setSeason(paramSeason);
+    // @ts-ignore
+    const paramEpisode = route.params['episode'] as Episode;
+    setEpisode(paramEpisode);
+    // @ts-ignore
+    const paramTranslation = route.params['translation'] as Translation;
+    setTranslation(paramTranslation);
   }, []);
   useEffect(() => {
     async function updateMedia() {
+      if (!translation) return;
+
       if (season && episode) {
         if (!movie) return;
         const videos = await getStream(
@@ -101,12 +106,17 @@ function WatchScreen() {
           episode?.id,
           translation?.id,
         );
+        isSeries = true;
         setVideoUrl(videos);
       } else {
         if (!movie) return;
         const movies = await getMovie(movie?.id, movie?.favs, translation);
         setVideoUrl(movies);
       }
+      if (!isSeries) return setEpIndex(-1);
+      // is first episode
+      const episodeIndex = season?.episodes.indexOf(episode!);
+      setEpIndex(episodeIndex ?? -1);
     }
     updateMedia();
   }, [episode, season, translation]);
@@ -130,15 +140,18 @@ function WatchScreen() {
     setVisible(!isVisible);
   }
   useEffect(() => {
-    if (!isLoading) player.current?.seek(currentTime);
-  }, [isLoading]);
-  useEffect(() => {
     return () => {
       if (visibleTimerId) clearTimeout(visibleTimerId);
     };
   }, [visibleTimerId]);
   useEffect(() => {
-    if (currentVideo?.url) setCached(convert(currentVideo?.url));
+    if (isLoading) return;
+    player.current?.seek(currentTime);
+  }, [isLoading]);
+  useEffect(() => {
+    if (currentVideo?.url) {
+      setCached(convert(currentVideo?.url));
+    }
   }, [currentVideo]);
   return (
     <View className="w-full h-full bg-blue-400">
@@ -147,6 +160,15 @@ function WatchScreen() {
         resizeMode="contain"
         fullscreenOrientation="landscape"
         fullscreen
+        onBuffer={d => console.log('onBuffer', d)}
+        onExternalPlaybackChange={d =>
+          console.log('onExternalPlaybackChange', d)
+        }
+        onSeek={d => console.log('onSeek', d)}
+        onVideoSeek={() => console.log('onvideoSeek')}
+        onPlaybackStalled={() => setLoading(true)}
+        onPlaybackResume={() => setLoading(false)}
+        onReadyForDisplay={() => setLoading(false)}
         allowsExternalPlayback
         source={{uri: cachedUrl}}
         ref={player}
@@ -189,7 +211,7 @@ function WatchScreen() {
               }}
               className={cn('bg-black opacity-90 rounded-md py-2 px-8')}>
               {isLoading ? (
-                <ActivityIndicator size={'large'} />
+                <ActivityIndicator size={64} color={'white'} />
               ) : (
                 <Icon
                   name={paused ? 'play' : 'pause'}
@@ -210,19 +232,46 @@ function WatchScreen() {
         )}
       </Pressable>
       {isVisible && (
-        <View
-          className={cn(
-            'absolute left-1 top-1 bg-black',
-            'opacity-80 border-2 border-white rounded-md flex flex-row px-4 items-center',
-          )}>
-          <Button onClick={() => console.log('Open playlist')}>
-            <View className="flex flex-row items-center justify-center">
-              <Icon name={'bars'} solid={ccEnabled} size={30} color={'#fff'} />
-              <Text className="text-white text-xl ml-1">
-                {season?.name} {episode?.name} {translation?.name}
-              </Text>
+        <View className="absolute left-1 top-1">
+          <Button onClick={() => setPlaylistVisible(!playlistVisible)}>
+            <View className="bg-black opacity-80 border-2 border-white rounded-md flex flex-row px-4 items-center">
+              <View className="flex flex-row items-center justify-center">
+                <Icon
+                  name={'bars'}
+                  solid={ccEnabled}
+                  size={30}
+                  color={'#fff'}
+                />
+                <Text className="text-white text-xl ml-1">
+                  {season?.name} {episode?.name} {translation?.name}
+                </Text>
+              </View>
             </View>
           </Button>
+        </View>
+      )}
+      {isVisible && isSeries && (
+        <View
+          className={cn(
+            'absolute right-1 top-1',
+            'bg-black opacity-80 border-2 border-white rounded-md flex flex-row items-center',
+          )}>
+          {episodeIndex > 0 && (
+            <View className="p-2 py-1">
+              <Button
+                onClick={() => setEpisode(season?.episodes[episodeIndex - 1])}>
+                <Icon name="fast-backward" size={36} color={'white'} />
+              </Button>
+            </View>
+          )}
+          {episodeIndex < season!.episodes.length && (
+            <View className="p-2 py-1">
+              <Button
+                onClick={() => setEpisode(season?.episodes[episodeIndex + 1])}>
+                <Icon name="fast-forward" size={36} color={'white'} />
+              </Button>
+            </View>
+          )}
         </View>
       )}
       {isVisible && (
@@ -238,6 +287,9 @@ function WatchScreen() {
           </Text>
           <View className={'flex-grow'}>
             <Slider
+              thumbTintColor="white"
+              minimumTrackTintColor="#ccc"
+              maximumTrackTintColor="white"
               onValueChange={v => setSliderVal(v)}
               value={currentTime / totalTime}
               onResponderStart={handlePress}
@@ -260,10 +312,33 @@ function WatchScreen() {
               />
             </Button>
           </View>
+
           <View className="flex-grow-0">
             <Dropdown
               ref={qualityDropdown}
               data={videoUrl}
+              containerStyle={{
+                borderRadius: 6,
+                borderColor: 'white',
+                borderWidth: 2,
+                backgroundColor: 'black',
+                opacity: 0.8,
+              }}
+              renderItem={item => {
+                return (
+                  <View className="p-1 m-2">
+                    <Text
+                      className={cn(
+                        'text-white',
+                        currentVideo?.quality === item.quality
+                          ? 'font-bold text-xl'
+                          : 'text-lg',
+                      )}>
+                      {item.quality}
+                    </Text>
+                  </View>
+                );
+              }}
               labelField="quality"
               valueField="url"
               mode="modal"
@@ -291,15 +366,41 @@ function WatchScreen() {
           </View>
         </View>
       )}
-      <Modal
-        animationType="slide"
-        visible={settingsVisible}
-        hardwareAccelerated
-        onRequestClose={() => setSettingsVisible(!settingsVisible)}>
-        <View>
-          <Text>Prikol</Text>
-        </View>
-      </Modal>
+      {playlistVisible && (
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={() => setPlaylistVisible(false)}>
+          <ScrollView className="absolute left-0 top-0 bottom-0 bg-black opacity-80 w-1/2 max-w-screen-sm p-3">
+            <Playlist
+              returnFn={({type, item}) => {
+                console.log('WatchFN receiver', type, item);
+                switch (type) {
+                  case 'series':
+                    setSeason(item.season);
+                    setEpisode(item.episode);
+                  case 'movie':
+                    setTranslation(item.translation);
+                    break;
+                }
+                setPlaylistVisible(false);
+              }}
+              selected={{
+                episode: episode?.id,
+                season: season?.id,
+                translation: translation?.id,
+              }}
+              level={0}
+              items={movie!.translators.map(x => ({
+                name: x.name,
+                translation: x,
+                type: 'translation',
+              }))}
+              info={{favs: movie!.favs, id: movie!.id}}
+              type={isSeries ? 'series' : 'movie'}
+            />
+          </ScrollView>
+        </Pressable>
+      )}
     </View>
   );
 }

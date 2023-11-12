@@ -12,7 +12,7 @@ import {useEffect, useState} from 'react';
 import {PreviewMovie, search} from '../logic/movie';
 import Movie from '../components/Movie';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {NavigationProps} from '../App';
+import {AsyncState, NavigationProps} from '../App';
 import cn from 'classnames';
 const numColumns = 2;
 function formatData(data: PreviewMovie[]) {
@@ -41,9 +41,7 @@ function SearchResultsScreen() {
   const [query, setQuery] = useState(route.params['query']);
   // @ts-ignore
   const page = route.params['page'] ?? 1;
-  const [state, setState] = useState<
-    'idle' | 'loading' | 'success' | 'fail' | 'notfound'
-  >('idle');
+  const [state, setState] = useState<AsyncState>('idle');
   const [error, setError] = useState('');
   const [fetchedMovies, setMovies] = useState<PreviewMovie[]>([]);
   useEffect(() => {

@@ -22,6 +22,7 @@ import Icon from 'react-native-vector-icons/FontAwesome5';
 import SearchBar from './components/SearchBar';
 import Title from './components/Title';
 init();
+export type AsyncState = 'idle' | 'loading' | 'success' | 'fail' | 'notfound';
 const Stack = createNativeStackNavigator();
 export type NavigationProps = {
   main: {search?: boolean} | undefined;
@@ -109,7 +110,7 @@ export default function App() {
                   const route = nav.current?.getCurrentRoute();
                   if (!route || !route.params) return <></>;
                   // @ts-ignore
-                  const {query, page} = route.params;
+                  const {page} = route.params;
                   const hideNext = !(page && page < 5);
                   const hidePrev = !(page && page > 1);
                   return (

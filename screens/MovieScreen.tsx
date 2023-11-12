@@ -77,7 +77,16 @@ function MovieScreen() {
     if (!translation) {
       return Alert.alert('No translation', 'Please select translation');
     }
-    if (movie) nav.push('watch', {movie: movie, translation, episode, season});
+    if (seasons.length > 0 && !season) {
+      return Alert.alert('No translation', 'Please select season & episode');
+    }
+    if (movie)
+      nav.push('watch', {
+        movie: movie,
+        translation,
+        season,
+        episode,
+      });
   }
   return (
     <View>
@@ -138,7 +147,7 @@ function MovieScreen() {
             className={
               'bg-yellow-200 border-gray-500 border-2 rounded-lg m-4 w-10/12'
             }>
-            <Button onClick={goWatchMovie}>
+            <Button onClick={goWatchMovie} disabled={seasonLoading}>
               <Text className={'text-3xl p-1 text-center font-bold text-black'}>
                 WATCH
               </Text>
