@@ -70,9 +70,24 @@ function WatchScreen() {
   const [currentVideo, setCurrentVideo] = useState<VideoProps>();
   const [videoUrl, setVideoUrl] = useState<VideoProps[]>([]);
   const [episodeIndex, setEpIndex] = useState(-1);
+  const [isEnd, setEnd] = useState(false);
   const [cachedUrl, setCached] = useState(
     'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
   );
+  function handleRelease() {
+    setVTimerId(
+      setTimeout(() => {
+        setVisible(false);
+        clearTimeout(visibleTimerId);
+      }, timeout),
+    );
+  }
+  function handlePress() {
+    if (visibleTimerId) clearTimeout(visibleTimerId);
+  }
+  function handleGeneralTouch() {
+    setVisible(!isVisible);
+  }
 
   useEffect(() => {
     // @ts-ignore
@@ -122,37 +137,34 @@ function WatchScreen() {
   }, [episode, season, translation]);
   useEffect(() => {
     if (videoUrl.length == 0) return;
-    setCurrentVideo(videoUrl[0]);
     player.current?.seek(0);
+    setCurrentTime(0);
+    setSliderVal(0);
+    setCurrentVideo(videoUrl[0]);
   }, [videoUrl]);
-  function handleRelease() {
-    setVTimerId(
-      setTimeout(() => {
-        setVisible(false);
-        clearTimeout(visibleTimerId);
-      }, timeout),
-    );
-  }
-  function handlePress() {
-    if (visibleTimerId) clearTimeout(visibleTimerId);
-  }
-  function handleGeneralTouch() {
-    setVisible(!isVisible);
-  }
+  useEffect(() => {
+    if (currentVideo?.url) {
+      setCurrentTime(0);
+      setSliderVal(0);
+      setCached(convert(currentVideo?.url));
+    }
+  }, [currentVideo]);
+  useEffect(() => {
+    if (isLoading) return;
+    console.log('seeking to current', currentTime);
+    player.current?.seek(currentTime);
+  }, [isLoading]);
+
+  useEffect(() => {
+    if (!paused && isEnd) setEnd(false);
+  }, [paused]);
+
   useEffect(() => {
     return () => {
       if (visibleTimerId) clearTimeout(visibleTimerId);
     };
   }, [visibleTimerId]);
-  useEffect(() => {
-    if (isLoading) return;
-    player.current?.seek(currentTime);
-  }, [isLoading]);
-  useEffect(() => {
-    if (currentVideo?.url) {
-      setCached(convert(currentVideo?.url));
-    }
-  }, [currentVideo]);
+
   return (
     <View className="w-full h-full bg-blue-400">
       <Video
@@ -160,12 +172,9 @@ function WatchScreen() {
         resizeMode="contain"
         fullscreenOrientation="landscape"
         fullscreen
-        onBuffer={d => console.log('onBuffer', d)}
-        onExternalPlaybackChange={d =>
-          console.log('onExternalPlaybackChange', d)
-        }
-        onSeek={d => console.log('onSeek', d)}
-        onVideoSeek={() => console.log('onvideoSeek')}
+        onSeek={() => {
+          if (isEnd) setPause(false);
+        }}
         onPlaybackStalled={() => setLoading(true)}
         onPlaybackResume={() => setLoading(false)}
         onReadyForDisplay={() => setLoading(false)}
@@ -181,8 +190,9 @@ function WatchScreen() {
         }}
         onLoadStart={() => setLoading(true)}
         onEnd={() => {
-          player.current?.seek(0);
           setPause(true);
+          setEnd(true);
+          setVisible(true);
         }}
         onError={e => console.log('VP ERROR', e.error.errorString)}
       />
@@ -196,38 +206,70 @@ function WatchScreen() {
         )}>
         {isVisible && (
           <View className="flex flex-row items-center justify-around">
-            <Pressable
-              android_disableSound
-              onPress={() => {
-                if (!isLoading) player.current?.seek(currentTime - 5);
-              }} //todo replace with changeable value
-              className={cn('bg-black opacity-90 rounded-md py-2 px-8')}>
-              <Icon name={'backward'} size={64} color={'#fff'} />
-            </Pressable>
-            <Pressable
-              android_disableSound
-              onPress={() => {
-                if (!isLoading) setPause(!paused);
-              }}
-              className={cn('bg-black opacity-90 rounded-md py-2 px-8')}>
-              {isLoading ? (
-                <ActivityIndicator size={64} color={'white'} />
-              ) : (
-                <Icon
-                  name={paused ? 'play' : 'pause'}
-                  size={64}
-                  color={'#fff'}
-                />
-              )}
-            </Pressable>
-            <Pressable
-              android_disableSound
-              onPress={() => {
-                if (!isLoading) player.current?.seek(currentTime + 5);
-              }} //todo replace with changeable value
-              className={cn('bg-black opacity-90 rounded-md py-2 px-8')}>
-              <Icon name={'forward'} size={64} color={'#fff'} />
-            </Pressable>
+            {isEnd ? (
+              <>
+                <Pressable
+                  android_disableSound
+                  onPress={() => {
+                    player.current?.seek(0);
+                    setPause(false);
+                  }}
+                  className={cn('bg-black opacity-90 rounded-md py-2 px-8')}>
+                  <Icon name="redo" size={64} color={'#fff'} />
+                </Pressable>
+                {episodeIndex < season!.episodes.length - 1 && (
+                  <Pressable
+                    android_disableSound
+                    onPress={() => {
+                      setEpisode(season?.episodes[episodeIndex + 1]);
+                      setPause(false);
+                    }}
+                    className={cn('bg-black opacity-90 rounded-md py-2 px-8')}>
+                    <View className=" flex flex-col items-center">
+                      <Icon name="step-forward" size={40} color={'#fff'} />
+                      <Text className="text-white text-lg">
+                        {season?.episodes[episodeIndex + 1].name}
+                      </Text>
+                    </View>
+                  </Pressable>
+                )}
+              </>
+            ) : (
+              <>
+                <Pressable
+                  android_disableSound
+                  onPress={() => {
+                    if (!isLoading) player.current?.seek(currentTime - 5);
+                  }} //todo replace with changeable value
+                  className={cn('bg-black opacity-90 rounded-md py-2 px-8')}>
+                  <Icon name={'backward'} size={64} color={'#fff'} />
+                </Pressable>
+                <Pressable
+                  android_disableSound
+                  onPress={() => {
+                    if (!isLoading) setPause(!paused);
+                  }}
+                  className={cn('bg-black opacity-90 rounded-md py-2 px-8')}>
+                  {isLoading ? (
+                    <ActivityIndicator size={64} color={'white'} />
+                  ) : (
+                    <Icon
+                      name={paused ? 'play' : 'pause'}
+                      size={64}
+                      color={'#fff'}
+                    />
+                  )}
+                </Pressable>
+                <Pressable
+                  android_disableSound
+                  onPress={() => {
+                    if (!isLoading) player.current?.seek(currentTime + 5);
+                  }} //todo replace with changeable value
+                  className={cn('bg-black opacity-90 rounded-md py-2 px-8')}>
+                  <Icon name={'forward'} size={64} color={'#fff'} />
+                </Pressable>
+              </>
+            )}
           </View>
         )}
       </Pressable>
@@ -259,15 +301,21 @@ function WatchScreen() {
           {episodeIndex > 0 && (
             <View className="p-2 py-1">
               <Button
-                onClick={() => setEpisode(season?.episodes[episodeIndex - 1])}>
+                onClick={() => {
+                  setEpisode(season?.episodes[episodeIndex - 1]);
+                  setPause(false);
+                }}>
                 <Icon name="fast-backward" size={36} color={'white'} />
               </Button>
             </View>
           )}
-          {episodeIndex < season!.episodes.length && (
+          {episodeIndex < season!.episodes.length - 1 && (
             <View className="p-2 py-1">
               <Button
-                onClick={() => setEpisode(season?.episodes[episodeIndex + 1])}>
+                onClick={() => {
+                  setEpisode(season?.episodes[episodeIndex + 1]);
+                  setPause(false);
+                }}>
                 <Icon name="fast-forward" size={36} color={'white'} />
               </Button>
             </View>
@@ -373,7 +421,6 @@ function WatchScreen() {
           <ScrollView className="absolute left-0 top-0 bottom-0 bg-black opacity-80 w-1/2 max-w-screen-sm p-3">
             <Playlist
               returnFn={({type, item}) => {
-                console.log('WatchFN receiver', type, item);
                 switch (type) {
                   case 'series':
                     setSeason(item.season);
