@@ -1,4 +1,9 @@
-import {RouteProp, useNavigation, useRoute} from '@react-navigation/native';
+import {
+  RouteProp,
+  useNavigation,
+  useRoute,
+  useTheme,
+} from '@react-navigation/native';
 import React, {useEffect, useState} from 'react';
 import {
   ActivityIndicator,
@@ -43,6 +48,7 @@ function MovieScreen() {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [season, setSeason] = useState<Season>();
   const [episode, setEpisode] = useState<Episode>();
+  const {colors, dark} = useTheme();
   useEffect(() => {
     async function set() {
       const html = await getHtmlFromURL(movieLink);
@@ -98,9 +104,8 @@ function MovieScreen() {
             alignItems: 'center',
           }}>
           <Text
-            className={
-              'text-4xl font-semibold m-2 mb-1 text-center text-black'
-            }>
+            className={'text-4xl font-semibold m-2 mb-1 text-center'}
+            style={{color: colors.text}}>
             {movie.name}
           </Text>
           <Text
@@ -108,13 +113,29 @@ function MovieScreen() {
             {movie.originalName}
           </Text>
           <Image source={{uri: movie.thumbnail}} className={'h-96 w-60'} />
-          <View className=" border-gray-500 border-2 rounded-lg m-4 p-1 w-10/12 z-10">
+          <View
+            className="border-2 border-zinc-600 rounded-lg m-4 p-1 w-10/12 z-10"
+            style={{backgroundColor: dark ? colors.border : colors.background}}>
             <Dropdown
+              containerStyle={{
+                backgroundColor: colors.background,
+                borderRadius: 8,
+              }}
+              itemContainerStyle={{
+                borderRadius: 8,
+              }}
+              selectedTextStyle={{
+                color: colors.text,
+              }}
+              itemTextStyle={{
+                color: colors.text,
+              }}
               data={translations}
               labelField={'name'}
               onChange={s => setTranslation(s)}
               valueField={'id'}
               placeholder="Select translation"
+              activeColor={colors.border}
             />
           </View>
           {seasonLoading ? (
@@ -122,35 +143,76 @@ function MovieScreen() {
           ) : (
             seasons.length > 0 && (
               <View className="flex flex-row w-10/12 items-center justify-center">
-                <View className="flex-grow border-gray-500 border-2 rounded-lg m-2 p-1 z-10">
+                <View
+                  className="flex-grow border-zinc-600 border-2 rounded-lg m-2 p-1 z-10"
+                  style={{
+                    backgroundColor: dark ? colors.border : colors.background,
+                  }}>
                   <Dropdown
+                    containerStyle={{
+                      backgroundColor: colors.background,
+                      borderRadius: 8,
+                    }}
+                    itemContainerStyle={{
+                      borderRadius: 8,
+                    }}
+                    selectedTextStyle={{
+                      color: colors.text,
+                    }}
+                    itemTextStyle={{
+                      color: colors.text,
+                    }}
                     data={seasons}
                     labelField={'name'}
                     valueField={'id'}
                     onChange={s => setSeason(s)}
+                    activeColor={colors.border}
                     placeholder="Season"
                   />
                 </View>
-                <View className="flex-grow border-gray-500 border-2 rounded-lg m-2 p-1 z-10">
+                <View
+                  className="flex-grow border-zinc-600 border-2 rounded-lg m-2 p-1 z-10"
+                  style={{
+                    backgroundColor: dark ? colors.border : colors.background,
+                  }}>
                   <Dropdown
+                    containerStyle={{
+                      backgroundColor: colors.background,
+                      borderRadius: 8,
+                    }}
+                    itemContainerStyle={{
+                      borderRadius: 8,
+                    }}
+                    selectedTextStyle={{
+                      color: colors.text,
+                    }}
+                    itemTextStyle={{
+                      color: colors.text,
+                    }}
                     data={season?.episodes ?? []}
                     labelField={'name'}
                     valueField={'id'}
                     onChange={e => setEpisode(e)}
                     placeholder="Episode"
+                    activeColor={colors.border}
                   />
                 </View>
               </View>
             )
           )}
-          <View
-            className={
-              'bg-yellow-200 border-gray-500 border-2 rounded-lg m-4 w-10/12'
-            }>
+          <View className={' m-4 w-10/12'}>
             <Button onClick={goWatchMovie} disabled={seasonLoading}>
-              <Text className={'text-3xl p-1 text-center font-bold text-black'}>
-                WATCH
-              </Text>
+              <View
+                className="border-2 rounded-lg border-gray-500"
+                style={{
+                  backgroundColor: colors.background,
+                }}>
+                <Text
+                  className={'text-3xl p-1 text-center font-bold'}
+                  style={{color: colors.text}}>
+                  WATCH
+                </Text>
+              </View>
             </Button>
           </View>
           <View className={'flex w-screen'}>

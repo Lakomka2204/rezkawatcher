@@ -166,9 +166,9 @@ function WatchScreen() {
   }, [visibleTimerId]);
 
   return (
-    <View className="w-full h-full bg-blue-400">
+    <View className="w-full h-full bg-black">
       <Video
-        className="absolute left-0 right-0 top-0 bottom-0 bg-blue-400"
+        className="absolute left-0 right-0 top-0 bottom-0"
         resizeMode="contain"
         fullscreenOrientation="landscape"
         fullscreen

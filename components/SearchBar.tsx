@@ -1,5 +1,5 @@
 import React, {useState, useEffect, useCallback} from 'react';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useTheme} from '@react-navigation/native';
 import axios from 'axios';
 import {Platform} from 'react-native';
 import {
@@ -23,7 +23,7 @@ function SearchBar() {
   const [query, setQuery] = useState('');
   const [event, setEvent] = useState<Event>('none');
   const nav = useNavigation<NativeStackNavigationProp<NavigationProps>>();
-
+  const {colors, dark} = useTheme();
   const getSuggestions = useCallback((inputQuery: string) => {
     setQuery(inputQuery);
   }, []);
@@ -36,7 +36,7 @@ function SearchBar() {
     if (!query) return; // No need to perform a search if query is empty.
 
     setLoading(true);
-    quickSearch(query.toLowerCase())
+    quickSearch(query)
       .then(response => {
         const suggestions = response.map<Result>(item => ({
           id: item.url ?? 'MOVIE_ID',
@@ -102,12 +102,23 @@ function SearchBar() {
         placeholder: 'Search for a movie',
         autoCorrect: false,
         autoCapitalize: 'none',
-        placeholderTextColor: '#888',
+        placeholderTextColor: dark ? '#ccc' : '#666',
+        cursorColor: colors.text,
+        selectionColor: colors.primary,
       }}
       inputContainerStyle={{
-        borderColor: 'black',
+        borderColor: colors.text,
         borderWidth: 1,
-        backgroundColor: 'white',
+        backgroundColor: colors.background,
+      }}
+      suggestionsListTextStyle={{
+        color: colors.text,
+      }}
+      suggestionsListContainerStyle={{
+        backgroundColor: colors.background,
+        shadowColor: colors.border,
+        borderColor: colors.text,
+        borderWidth: 1,
       }}
       containerStyle={{
         width: '80%',

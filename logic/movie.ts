@@ -165,28 +165,23 @@ export function createParams(
 }
 
 export async function quickSearch(query: string): Promise<QuickMovie[]> {
-  try {
-    const res = await axios.post('https://rezka.ag/engine/ajax/search.php', {
-      q: query,
+  const res = await axios.post('https://rezka.ag/engine/ajax/search.php', {
+    q: query,
+  });
+  const dom = parse(res.data);
+  const items: QuickMovie[] = [];
+  dom.querySelectorAll('a').forEach(x => {
+    if (x.classList.length > 0) return;
+    items.push({
+      url: x.getAttribute('href')!,
+      name: x.textContent!,
+      enabled: true,
+      id: 'QuickSearch ID',
     });
-    const dom = parse(res.data);
-    const items: QuickMovie[] = [];
-    dom.querySelectorAll('a').forEach(x => {
-      if (x.classList.length > 0) return;
-      items.push({
-        url: x.getAttribute('href')!,
-        name: x.textContent!,
-        enabled: true,
-        id: 'QuickSearch ID',
-      });
-    });
-    console.log('qS', items.length);
-    if (items.length) return items;
-    else return [{enabled: false, name: 'Not found anything', url: '', id: ''}];
-  } catch (err) {
-    console.error(err);
-    return [];
-  }
+  });
+  console.log('qS', items.length);
+  if (items.length) return items;
+  else return [];
 }
 
 export async function search(
