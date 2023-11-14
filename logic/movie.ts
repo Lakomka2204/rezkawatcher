@@ -1,5 +1,4 @@
 import axios from 'axios';
-import fs from 'node:fs';
 import {parse, HTMLElement, valid} from 'node-html-parser';
 
 export type MovieType = 'none' | 'animation' | 'cartoons' | 'series' | 'films';
@@ -38,6 +37,16 @@ export type Rating = {
 export interface VideoProps {
   quality: VideoQuality;
   url: string;
+}
+export interface Subtitles {
+  language: string;
+  displayLanguage?: string;
+  url: string;
+}
+export interface VideoInfo {
+  videos: VideoProps[];
+  subtitles: Subtitles[];
+  defaultSubtitle?: string;
 }
 export class Episode extends Instance {
   cdnUrl: string;
@@ -83,7 +92,6 @@ export class PreviewMovie extends QuickMovie {
     this.type = type;
   }
 }
-
 export class Movie extends PreviewMovie {
   originalName: string;
   description: string;
@@ -165,23 +173,27 @@ export function createParams(
 }
 
 export async function quickSearch(query: string): Promise<QuickMovie[]> {
-  const res = await axios.post('https://rezka.ag/engine/ajax/search.php', {
-    q: query,
-  });
-  const dom = parse(res.data);
-  const items: QuickMovie[] = [];
-  dom.querySelectorAll('a').forEach(x => {
-    if (x.classList.length > 0) return;
-    items.push({
-      url: x.getAttribute('href')!,
-      name: x.textContent!,
-      enabled: true,
-      id: 'QuickSearch ID',
+  try {
+    const res = await axios.post('https://rezka.ag/engine/ajax/search.php', {
+      q: query,
     });
-  });
-  console.log('qS', items.length);
-  if (items.length) return items;
-  else return [];
+    const dom = parse(res.data);
+    const items: QuickMovie[] = [];
+    dom.querySelectorAll('a').forEach(x => {
+      if (x.classList.length > 0) return;
+      items.push({
+        url: x.getAttribute('href')!,
+        name: x.textContent!,
+        enabled: true,
+        id: 'QuickSearch ID',
+      });
+    });
+    console.log('qS', items.length);
+    if (items.length) return items;
+    else return [];
+  } catch {
+    return [];
+  }
 }
 
 export async function search(
@@ -230,20 +242,26 @@ export async function getTranslationSeries(
     id,
     translator_id: translation.id,
     action: 'get_episodes',
-    is_ads: translation.is_ads ?? 0,
-    is_camrip: translation.is_camrip ?? 0,
-    is_director: translation.is_director ?? 0,
     favs: favs,
   };
+  if (translation.is_ads)
+    //@ts-ignore
+    reqArgs['is_ads'] = translation.is_ads;
+  if (translation.is_camrip)
+    //@ts-ignore
+    reqArgs['is_camrip'] = translation.is_camrip;
+  if (translation.is_director)
+    //@ts-ignore
+    reqArgs['is_director'] = translation.is_director;
   const res = await axios.post(
     'https://rezka.ag/ajax/get_cdn_series/',
     reqArgs,
     {headers: {'Content-Type': 'application/x-www-form-urlencoded'}},
   );
   if (!res.data.success) {
-    // console.warn("Could not retrieve seasons, eisodes, for secified translation:",res.data.message);
     return [];
   }
+
   const seasonsDOM = parse(res.data.seasons);
   const seasonNodes = seasonsDOM.querySelectorAll('li');
   const seasons: any[] = [];
@@ -294,55 +312,57 @@ export async function getMovie(
   id: string,
   favs?: string,
   translation?: Translation,
-): Promise<VideoProps[]> {
-  try {
-    const res = await axios.post('https://rezka.ag/ajax/get_cdn_series/', {
-      id,
-      translator_id: translation?.id,
-      favs,
-      is_ads: translation?.is_ads ?? '0',
-      is_director: translation?.is_director ?? '0',
-      is_camrip: translation?.is_camrip ?? '0',
-      action: 'get_movie',
-    });
-    if (!res.data.success) {
-      console.error('Could not retrieve movie:', res.data.message);
-      return [];
-    }
-    return parseCdnUrl(res.data.url);
-  } catch (err) {
-    console.error(err);
-    return [];
+): Promise<VideoInfo> {
+  const res = await axios.post('https://rezka.ag/ajax/get_cdn_series/', {
+    id,
+    translator_id: translation?.id,
+    favs,
+    is_ads: translation?.is_ads ?? '0',
+    is_director: translation?.is_director ?? '0',
+    is_camrip: translation?.is_camrip ?? '0',
+    action: 'get_movie',
+  });
+  if (!res.data.success) {
+    console.error('Could not retrieve movie:', res.data.message);
+    return {videos: [], subtitles: [], defaultSubtitle: res.data.subtitle_def};
   }
+  const subs: Subtitles[] = [];
+  if (res.data.subtitles) {
+    subs.push(...parseSubtitlesUrl(res.data.subtitles, res.data.subtitle_lns));
+  }
+  return {videos: parseCdnUrl(res.data.url), subtitles: subs};
 }
 
 export async function getStream(
   id: string,
   season?: Season | string,
   episode?: Episode | string,
-  translation?: Translation | string,
-): Promise<VideoProps[]> {
-  try {
-    const res = await axios.post('https://rezka.ag/ajax/get_cdn_series/', {
-      id,
-      translator_id:
-        translation instanceof Translation ? translation.id : translation,
-      season: season instanceof Season ? season.id : season,
-      episode: episode instanceof Episode ? episode.id : episode,
-      action: 'get_stream',
-    });
+  translationId?: string,
+): Promise<VideoInfo> {
+  const res = await axios.post('https://rezka.ag/ajax/get_cdn_series/', {
+    id,
+    translator_id: translationId,
+    season: season instanceof Season ? season.id : season,
+    episode: episode instanceof Episode ? episode.id : episode,
+    action: 'get_stream',
+  });
 
-    if (!res.data.success) {
-      console.error('Could not retrieve stream:', res.data.message);
-      return [];
-    }
-    return parseCdnUrl(res.data.url);
-  } catch (err) {
-    console.error(err);
-    return [];
+  if (!res.data.success) {
+    console.error('Could not retrieve stream:', res.data.message);
+    return {videos: [], subtitles: []};
   }
+  const props = parseCdnUrl(res.data.url);
+  const subs: Subtitles[] = [];
+  if (res.data.subtitles) {
+    subs.push(...parseSubtitlesUrl(res.data.subtitles, res.data.subtitle_lns));
+  }
+  return {
+    videos: props,
+    subtitles: subs,
+    defaultSubtitle: res.data.subtitle_def,
+  };
 }
-export async function testCdn(url: string): Promise<boolean> {
+export async function testRemoteFile(url: string): Promise<boolean> {
   try {
     const res = await axios.head(url);
     return res.status == 200;
@@ -350,6 +370,20 @@ export async function testCdn(url: string): Promise<boolean> {
     console.error(err);
     return false;
   }
+}
+export function parseSubtitlesUrl(subs: string, subLnc: object): Subtitles[] {
+  const sub = subs.split(',');
+  const finArr: Subtitles[] = [];
+  for (let subUrl of sub) {
+    const r = /\[(.*)\](.*)/.exec(subUrl);
+    if (r?.[0] == null) continue;
+    const displayLang = r[1];
+    const url = r[2];
+    // @ts-ignore
+    const langCode = subLnc[r[1]];
+    finArr.push({language: langCode, url, displayLanguage: displayLang});
+  }
+  return finArr;
 }
 export function parseCdnUrl(cdn: string): VideoProps[] {
   const decodedUrls = clearTrash(cdn);

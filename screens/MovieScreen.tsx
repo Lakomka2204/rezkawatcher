@@ -115,10 +115,13 @@ function MovieScreen() {
           <Image source={{uri: movie.thumbnail}} className={'h-96 w-60'} />
           <View
             className="border-2 border-zinc-600 rounded-lg m-4 p-1 w-10/12 z-10"
-            style={{backgroundColor: dark ? colors.border : colors.background}}>
+            style={{
+              backgroundColor: colors.background,
+            }}>
             <Dropdown
               containerStyle={{
                 backgroundColor: colors.background,
+                borderColor: colors.text,
                 borderRadius: 8,
               }}
               itemContainerStyle={{
@@ -146,7 +149,7 @@ function MovieScreen() {
                 <View
                   className="flex-grow border-zinc-600 border-2 rounded-lg m-2 p-1 z-10"
                   style={{
-                    backgroundColor: dark ? colors.border : colors.background,
+                    backgroundColor: colors.background,
                   }}>
                   <Dropdown
                     containerStyle={{
@@ -173,7 +176,7 @@ function MovieScreen() {
                 <View
                   className="flex-grow border-zinc-600 border-2 rounded-lg m-2 p-1 z-10"
                   style={{
-                    backgroundColor: dark ? colors.border : colors.background,
+                    backgroundColor: colors.background,
                   }}>
                   <Dropdown
                     containerStyle={{

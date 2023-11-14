@@ -2,8 +2,6 @@ import React, {useEffect, useRef, useState} from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
-  Modal,
   Pressable,
   ScrollView,
   StatusBar,
@@ -18,14 +16,13 @@ import {
   useNavigation,
   useRoute,
 } from '@react-navigation/native';
-import Video, {FilterType} from 'react-native-video';
+import Video from 'react-native-video';
 import Button from '../components/Button';
 import cn from 'classnames';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import Slider from '@react-native-community/slider';
 import {
   Movie,
-  getTranslationSeries,
   VideoProps,
   getStream,
   Season,
@@ -33,12 +30,15 @@ import {
   Translation,
   getMovie,
   getTime,
+  VideoInfo,
+  Subtitles,
 } from '../logic/movie';
 import convert from 'react-native-video-cache';
 import {Dropdown, IDropdownRef} from 'react-native-element-dropdown';
 import {NavigationProps} from '../App';
 import Playlist from '../components/Playlist';
 let isSeries = false;
+
 function WatchScreen() {
   useFocusEffect(
     useCallback(() => {
@@ -53,6 +53,7 @@ function WatchScreen() {
   const nav = useNavigation();
   const player = useRef<Video>(null);
   const qualityDropdown = useRef<IDropdownRef>(null);
+  const subtitleDropdown = useRef<IDropdownRef>(null);
   const [paused, setPause] = useState(false);
   const [muted, setMute] = useState(false);
   const [sliderVal, setSliderVal] = useState(0);
@@ -68,7 +69,11 @@ function WatchScreen() {
   const [isLoading, setLoading] = useState(false);
   const [movie, setMovie] = useState<Movie>();
   const [currentVideo, setCurrentVideo] = useState<VideoProps>();
-  const [videoUrl, setVideoUrl] = useState<VideoProps[]>([]);
+  const [currentSubtitles, setCurrentSubs] = useState<Subtitles>();
+  const [videoUrl, setVideoUrl] = useState<VideoInfo>({
+    videos: [],
+    subtitles: [],
+  });
   const [episodeIndex, setEpIndex] = useState(-1);
   const [isEnd, setEnd] = useState(false);
   const [cachedUrl, setCached] = useState(
@@ -88,7 +93,15 @@ function WatchScreen() {
   function handleGeneralTouch() {
     setVisible(!isVisible);
   }
-
+  useEffect(() => {
+    player.current?.props.textTracks?.pop();
+    player.current?.props.textTracks?.push({
+      type: 'text/vtt',
+      uri: currentSubtitles!.url,
+      language: currentSubtitles?.language,
+      title: currentSubtitles?.displayLanguage,
+    });
+  }, [currentSubtitles]);
   useEffect(() => {
     // @ts-ignore
     if (!route.params['movie']) {
@@ -136,11 +149,16 @@ function WatchScreen() {
     updateMedia();
   }, [episode, season, translation]);
   useEffect(() => {
-    if (videoUrl.length == 0) return;
+    if (videoUrl?.videos.length == 0) return;
     player.current?.seek(0);
     setCurrentTime(0);
     setSliderVal(0);
-    setCurrentVideo(videoUrl[0]);
+    setCurrentVideo(videoUrl?.videos[0]);
+    if (videoUrl.subtitles.length > 0)
+      setCurrentSubs(
+        videoUrl.subtitles.find(x => x.language === videoUrl.defaultSubtitle) ??
+          videoUrl.subtitles[0],
+      );
   }, [videoUrl]);
   useEffect(() => {
     if (currentVideo?.url) {
@@ -151,7 +169,6 @@ function WatchScreen() {
   }, [currentVideo]);
   useEffect(() => {
     if (isLoading) return;
-    console.log('seeking to current', currentTime);
     player.current?.seek(currentTime);
   }, [isLoading]);
 
@@ -183,6 +200,10 @@ function WatchScreen() {
         ref={player}
         paused={paused}
         muted={muted}
+        selectedTextTrack={{
+          type: ccEnabled ? 'index' : 'disabled',
+          value: ccEnabled ? 0 : undefined,
+        }}
         onProgress={p => setCurrentTime(p.currentTime)}
         onLoad={data => {
           setTotalTime(data.duration);
@@ -347,31 +368,54 @@ function WatchScreen() {
               }}
             />
           </View>
-          <View className="flex-grow-0">
-            <Button
-              onClick={() => setCcEnabled(!ccEnabled)}
-              onLongPress={c => console.log('TOGGLE CAPTION LIST')}>
-              <Icon
-                style={{padding: 3, margin: 1}}
-                name={'closed-captioning'}
-                solid={ccEnabled}
-                size={30}
-                color={'#fff'}
+          {videoUrl.subtitles.length > 0 && (
+            <View className="flex-grow-0">
+              <Dropdown
+                ref={subtitleDropdown}
+                data={videoUrl.subtitles}
+                containerStyle={styles.dropdown}
+                renderItem={item => {
+                  return (
+                    <View className="p-1 m-2">
+                      <Text
+                        className={cn(
+                          'text-white',
+                          currentSubtitles?.language === item.language //todo make state for current subtitle
+                            ? 'font-bold text-xl'
+                            : 'text-lg',
+                        )}>
+                        {item.displayLanguage}
+                      </Text>
+                    </View>
+                  );
+                }}
+                labelField={'displayLanguage'}
+                valueField={'url'}
+                mode="modal"
+                autoScroll
+                keyboardAvoiding
+                renderRightIcon={v => null}
+                renderLeftIcon={v => (
+                  <Button
+                    onClick={() => setCcEnabled(!ccEnabled)}
+                    onLongPress={() => subtitleDropdown.current?.open()}>
+                    <Icon
+                      name={'closed-captioning'}
+                      solid={ccEnabled}
+                      size={30}
+                      color={'#fff'}
+                    />
+                  </Button>
+                )}
+                onChange={changedItem => setCurrentSubs(changedItem)}
               />
-            </Button>
-          </View>
-
+            </View>
+          )}
           <View className="flex-grow-0">
             <Dropdown
               ref={qualityDropdown}
-              data={videoUrl}
-              containerStyle={{
-                borderRadius: 6,
-                borderColor: 'white',
-                borderWidth: 2,
-                backgroundColor: 'black',
-                opacity: 0.8,
-              }}
+              data={videoUrl.videos}
+              containerStyle={styles.dropdown}
               renderItem={item => {
                 return (
                   <View className="p-1 m-2">
@@ -391,7 +435,6 @@ function WatchScreen() {
               valueField="url"
               mode="modal"
               autoScroll
-              dropdownPosition="bottom"
               keyboardAvoiding
               renderRightIcon={v => null}
               renderLeftIcon={v => (
@@ -405,7 +448,7 @@ function WatchScreen() {
           <View className="flex-grow-0">
             <Button onClick={() => setMute(!muted)}>
               <Icon
-                style={{padding: 3, margin: 1}}
+                style={styles.icon}
                 name={muted ? 'volume-mute' : 'volume-up'}
                 size={30}
                 color={'#fff'}
@@ -451,5 +494,14 @@ function WatchScreen() {
     </View>
   );
 }
-
+const styles = StyleSheet.create({
+  dropdown: {
+    borderRadius: 6,
+    borderColor: 'white',
+    borderWidth: 2,
+    backgroundColor: 'black',
+    opacity: 0.8,
+  },
+  icon: {padding: 3, margin: 1},
+});
 export default WatchScreen;
