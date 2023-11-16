@@ -96,6 +96,7 @@ describe('movie class methods', () => {
       '3',
       movie.translators[1].id,
     );
+    expect(videoInfo.videos.length).toBeGreaterThanOrEqual(1);
     expect(videoInfo.subtitles.length).toEqual(2);
     expect(videoInfo.defaultSubtitle).not.toBeNull();
     expect(await mv.testRemoteFile(videoInfo.subtitles[0].url)).toBeTruthy();

@@ -38,7 +38,20 @@ import {Dropdown, IDropdownRef} from 'react-native-element-dropdown';
 import {NavigationProps} from '../App';
 import Playlist from '../components/Playlist';
 let isSeries = false;
-
+const timeout = 6000;
+function formatSubtitles(data: Subtitles[]): {
+  title?: string | undefined;
+  language?: string | undefined;
+  type: 'text/vtt' | 'application/x-subrip' | 'application/ttml+xml';
+  uri: string;
+}[] {
+  return data.map(x => ({
+    type: 'text/vtt',
+    uri: x.url,
+    language: x.language,
+    title: x.displayLanguage,
+  }));
+}
 function WatchScreen() {
   useFocusEffect(
     useCallback(() => {
@@ -48,7 +61,6 @@ function WatchScreen() {
       };
     }, []),
   );
-  const timeout = 6000;
   const route = useRoute<RouteProp<NavigationProps>>();
   const nav = useNavigation();
   const player = useRef<Video>(null);
@@ -94,13 +106,10 @@ function WatchScreen() {
     setVisible(!isVisible);
   }
   useEffect(() => {
-    player.current?.props.textTracks?.pop();
-    player.current?.props.textTracks?.push({
-      type: 'text/vtt',
-      uri: currentSubtitles!.url,
-      language: currentSubtitles?.language,
-      title: currentSubtitles?.displayLanguage,
-    });
+    if (!currentSubtitles) return;
+    console.log('changed current subs', currentSubtitles);
+    console.log('vp props', player.current?.props.textTracks);
+    console.log('vp props', player.current?.props.selectedTextTrack);
   }, [currentSubtitles]);
   useEffect(() => {
     // @ts-ignore
@@ -200,9 +209,10 @@ function WatchScreen() {
         ref={player}
         paused={paused}
         muted={muted}
+        textTracks={formatSubtitles(videoUrl.subtitles)}
         selectedTextTrack={{
-          type: ccEnabled ? 'index' : 'disabled',
-          value: ccEnabled ? 0 : undefined,
+          type: ccEnabled ? 'language' : 'disabled',
+          value: currentSubtitles?.language,
         }}
         onProgress={p => setCurrentTime(p.currentTime)}
         onLoad={data => {

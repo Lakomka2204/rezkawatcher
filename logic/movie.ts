@@ -327,8 +327,8 @@ export async function getMovie(
     return {videos: [], subtitles: [], defaultSubtitle: res.data.subtitle_def};
   }
   const subs: Subtitles[] = [];
-  if (res.data.subtitles) {
-    subs.push(...parseSubtitlesUrl(res.data.subtitles, res.data.subtitle_lns));
+  if (res.data.subtitle) {
+    subs.push(...parseSubtitlesUrl(res.data.subtitle, res.data.subtitle_lns));
   }
   return {videos: parseCdnUrl(res.data.url), subtitles: subs};
 }
@@ -353,8 +353,8 @@ export async function getStream(
   }
   const props = parseCdnUrl(res.data.url);
   const subs: Subtitles[] = [];
-  if (res.data.subtitles) {
-    subs.push(...parseSubtitlesUrl(res.data.subtitles, res.data.subtitle_lns));
+  if (res.data.subtitle) {
+    subs.push(...parseSubtitlesUrl(res.data.subtitle, res.data.subtitle_lns));
   }
   return {
     videos: props,
