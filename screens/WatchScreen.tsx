@@ -15,8 +15,9 @@ import {
   useFocusEffect,
   useNavigation,
   useRoute,
+  useTheme,
 } from '@react-navigation/native';
-import Video from 'react-native-video';
+import Video, {TextTrackType} from 'react-native-video';
 import Button from '../components/Button';
 import cn from 'classnames';
 import Icon from 'react-native-vector-icons/FontAwesome5';
@@ -31,7 +32,7 @@ import {
   getMovie,
   getTime,
   VideoInfo,
-  Subtitles,
+  Subtitles as Subs,
 } from '../logic/movie';
 import convert from 'react-native-video-cache';
 import {Dropdown, IDropdownRef} from 'react-native-element-dropdown';
@@ -39,14 +40,14 @@ import {NavigationProps} from '../App';
 import Playlist from '../components/Playlist';
 let isSeries = false;
 const timeout = 6000;
-function formatSubtitles(data: Subtitles[]): {
+function formatSubtitles(data: Subs[]): {
   title?: string | undefined;
   language?: string | undefined;
   type: 'text/vtt' | 'application/x-subrip' | 'application/ttml+xml';
   uri: string;
 }[] {
   return data.map(x => ({
-    type: 'text/vtt',
+    type: TextTrackType.VTT,
     uri: x.url,
     language: x.language,
     title: x.displayLanguage,
@@ -61,6 +62,7 @@ function WatchScreen() {
       };
     }, []),
   );
+  const {colors, dark} = useTheme();
   const route = useRoute<RouteProp<NavigationProps>>();
   const nav = useNavigation();
   const player = useRef<Video>(null);
@@ -81,7 +83,7 @@ function WatchScreen() {
   const [isLoading, setLoading] = useState(false);
   const [movie, setMovie] = useState<Movie>();
   const [currentVideo, setCurrentVideo] = useState<VideoProps>();
-  const [currentSubtitles, setCurrentSubs] = useState<Subtitles>();
+  const [currentSubtitles, setCurrentSubs] = useState<Subs>();
   const [videoUrl, setVideoUrl] = useState<VideoInfo>({
     videos: [],
     subtitles: [],
@@ -170,10 +172,10 @@ function WatchScreen() {
       );
   }, [videoUrl]);
   useEffect(() => {
-    if (currentVideo?.url) {
+    if (currentVideo?.streamUrl) {
       setCurrentTime(0);
       setSliderVal(0);
-      setCached(convert(currentVideo?.url));
+      setCached(convert(currentVideo?.streamUrl));
     }
   }, [currentVideo]);
   useEffect(() => {
@@ -205,6 +207,7 @@ function WatchScreen() {
         onPlaybackResume={() => setLoading(false)}
         onReadyForDisplay={() => setLoading(false)}
         allowsExternalPlayback
+        //@ts-ignore
         source={{uri: cachedUrl}}
         ref={player}
         paused={paused}
@@ -212,7 +215,7 @@ function WatchScreen() {
         textTracks={formatSubtitles(videoUrl.subtitles)}
         selectedTextTrack={{
           type: ccEnabled ? 'language' : 'disabled',
-          value: currentSubtitles?.language,
+          value: currentSubtitles?.displayLanguage,
         }}
         onProgress={p => setCurrentTime(p.currentTime)}
         onLoad={data => {
@@ -340,7 +343,7 @@ function WatchScreen() {
               </Button>
             </View>
           )}
-          {episodeIndex < season!.episodes.length - 1 && (
+          {episodeIndex < (season?.episodes.length ?? 0) - 1 && (
             <View className="p-2 py-1">
               <Button
                 onClick={() => {
@@ -384,13 +387,16 @@ function WatchScreen() {
                 ref={subtitleDropdown}
                 data={videoUrl.subtitles}
                 containerStyle={styles.dropdown}
+                onBlur={() => handleRelease()}
+                onFocus={() => handlePress()}
+                activeColor={colors.border}
                 renderItem={item => {
                   return (
                     <View className="p-1 m-2">
                       <Text
                         className={cn(
                           'text-white',
-                          currentSubtitles?.language === item.language //todo make state for current subtitle
+                          currentSubtitles?.language === item.language
                             ? 'font-bold text-xl'
                             : 'text-lg',
                         )}>
@@ -408,7 +414,9 @@ function WatchScreen() {
                 renderLeftIcon={v => (
                   <Button
                     onClick={() => setCcEnabled(!ccEnabled)}
-                    onLongPress={() => subtitleDropdown.current?.open()}>
+                    onLongPress={() => {
+                      subtitleDropdown.current?.open();
+                    }}>
                     <Icon
                       name={'closed-captioning'}
                       solid={ccEnabled}
@@ -442,9 +450,12 @@ function WatchScreen() {
                 );
               }}
               labelField="quality"
-              valueField="url"
+              valueField="streamUrl"
               mode="modal"
               autoScroll
+              activeColor={colors.border}
+              onBlur={() => handleRelease()}
+              onFocus={() => handlePress()}
               keyboardAvoiding
               renderRightIcon={v => null}
               renderLeftIcon={v => (
