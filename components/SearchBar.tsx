@@ -1,9 +1,15 @@
-import React, {useState, useEffect, useCallback} from 'react';
-import {useNavigation, useTheme} from '@react-navigation/native';
+import React, {useState, useEffect, useCallback, useRef} from 'react';
+import {
+  RouteProp,
+  useNavigation,
+  useRoute,
+  useTheme,
+} from '@react-navigation/native';
 import axios from 'axios';
-import {Platform} from 'react-native';
+import {Keyboard, Platform, TextInput} from 'react-native';
 import {
   AutocompleteDropdown,
+  AutocompleteDropdownProps,
   TAutocompleteDropdownItem,
 } from 'react-native-autocomplete-dropdown';
 import {quickSearch} from '../logic/movie';
@@ -24,6 +30,8 @@ function SearchBar() {
   const [event, setEvent] = useState<Event>('none');
   const nav = useNavigation<NativeStackNavigationProp<NavigationProps>>();
   const {colors, dark} = useTheme();
+  const route = useRoute<RouteProp<NavigationProps>>();
+  const searchBar = useRef<TextInput>(null);
   const getSuggestions = useCallback((inputQuery: string) => {
     setQuery(inputQuery);
   }, []);
@@ -31,6 +39,12 @@ function SearchBar() {
   const clearSuggestions = useCallback(() => {
     setSuggestionsList([]);
   }, []);
+  useEffect(() => {
+    // @ts-ignore
+    if (route.params['search']) {
+      searchBar.current?.focus();
+    }
+  }, [route]);
 
   useEffect(() => {
     if (!query) return; // No need to perform a search if query is empty.
@@ -90,6 +104,7 @@ function SearchBar() {
 
   return (
     <AutocompleteDropdown
+      ref={searchBar}
       direction={Platform.select({ios: 'down'})}
       dataSet={suggestionsList}
       onChangeText={t => getSuggestions(t)}
@@ -99,6 +114,7 @@ function SearchBar() {
       useFilter={false}
       loading={loading}
       textInputProps={{
+        keyboardType: 'web-search',
         placeholder: 'Search for a movie',
         autoCorrect: false,
         autoCapitalize: 'none',
