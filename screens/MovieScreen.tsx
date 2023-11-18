@@ -71,6 +71,7 @@ function MovieScreen() {
             translation ?? translations[0],
           );
           setSeasons(seasons);
+          setSeason(undefined);
         }
       } finally {
         setSeasonLoading(false);
