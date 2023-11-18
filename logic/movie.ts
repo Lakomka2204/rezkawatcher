@@ -36,7 +36,8 @@ export type Rating = {
 };
 export interface VideoProps {
   quality: VideoQuality;
-  url: string;
+  streamUrl: string;
+  downloadUrl: string;
 }
 export interface Subtitles {
   language: string;
@@ -149,7 +150,7 @@ export class Movie extends PreviewMovie {
         this.translators.push({id: translationId, name: translationName});
       }
       if (this.translators.length == 0)
-        this.translators.push({id: translationId, name: 'No translation name'});
+        this.translators.push({id: translationId, name: 'Default'});
     }
   }
 }
@@ -392,8 +393,8 @@ export function parseCdnUrl(cdn: string): VideoProps[] {
   for (let url of decodedArr) {
     const r = /\[(.*)\](.*):hls:(?:.*)or (.*)/.exec(url);
     if (r?.[0] == null) continue;
-    const validUrl = [r![2], r![3]].filter(x => x.match(/^[\x00-\x7F]*$/))[0];
-    finArr.push({quality: r[1] as VideoQuality, url: validUrl});
+    
+    finArr.push({quality: r[1] as VideoQuality, streamUrl: r[2], downloadUrl: r[3]});
   }
   return finArr;
 }
