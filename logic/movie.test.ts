@@ -112,7 +112,7 @@ describe('movie class methods', () => {
     const stream = await mv.getStream(movie.id, '1', '4', belTranslation.id);
     expect(stream.videos.length).toBeGreaterThan(4);
     expect(stream.videos[0].quality).toEqual('360p');
-    expect(await mv.testRemoteFile(stream.videos[0].url)).toBeTruthy();
+    expect(await mv.testRemoteFile(stream.videos[0].streamUrl)).toBeTruthy();
   });
   it('should get seasons & episodes from translator id', async () => {
     const html = await mv.getHtmlFromURL(
@@ -144,7 +144,7 @@ describe('movie class methods', () => {
     const videos = mv.parseCdnUrl(firstTranslation[0].episodes[0].cdnUrl);
     expect(videos.length).toBeGreaterThan(4);
     expect(videos[0].quality).not.toBe<mv.VideoQuality>('none');
-    const res = await axios.head(videos[0].url);
+    const res = await axios.head(videos[0].streamUrl);
     expect(res.status).toBe(200);
   });
   it('should make correct cartesian array', () => {
