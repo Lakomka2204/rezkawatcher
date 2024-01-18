@@ -98,7 +98,7 @@ export class Movie extends PreviewMovie {
   description: string;
   releaseDate?: string;
   translators: Translation[];
-  favs: string;
+  favs?: string;
   constructor(html: string) {
     super('', true, '', 'none');
     const dom = parse(html);
@@ -110,7 +110,7 @@ export class Movie extends PreviewMovie {
     this.description = dom.querySelector(
       '.b-post__description_text',
     )?.textContent!;
-    this.favs = dom.getElementById('ctrl_favs').getAttribute('value')!;
+    this.favs = dom.getElementById('ctrl_favs')?.getAttribute('value');
     this.originalName = dom.querySelector(
       'div[itemprop="alternativeHeadline"]',
     )?.textContent!;
@@ -155,6 +155,7 @@ export class Movie extends PreviewMovie {
   }
 }
 function getPathname(url: string): MovieType {
+  if (!url) return 'none';
   const match = url.match(/\/\w+\.\w+\/(.+)\/(?:.+)\//);
   if (match) {
     return match[1] as MovieType;
@@ -236,15 +237,17 @@ export async function getHtmlFromURL(url: string): Promise<string> {
 
 export async function getTranslationSeries(
   id: string,
-  favs: string,
   translation: Translation,
+  favs?: string,
 ): Promise<Season[]> {
   const reqArgs = {
     id,
     translator_id: translation.id,
     action: 'get_episodes',
-    favs: favs,
   };
+  if (favs)
+    //@ts-ignore
+    reqArgs['favs'] = favs;
   if (translation.is_ads)
     //@ts-ignore
     reqArgs['is_ads'] = translation.is_ads;
@@ -393,8 +396,12 @@ export function parseCdnUrl(cdn: string): VideoProps[] {
   for (let url of decodedArr) {
     const r = /\[(.*)\](.*):hls:(?:.*)or (.*)/.exec(url);
     if (r?.[0] == null) continue;
-    
-    finArr.push({quality: r[1] as VideoQuality, streamUrl: r[2], downloadUrl: r[3]});
+
+    finArr.push({
+      quality: r[1] as VideoQuality,
+      streamUrl: r[2],
+      downloadUrl: r[3],
+    });
   }
   return finArr;
 }
@@ -431,13 +438,8 @@ export function generateCombinations<T>(elements: T[], length: number): T[][] {
 }
 
 export function getTime(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const remainingSeconds = (seconds % 60).toFixed();
-
-  const formattedHours = String(hours).padStart(2, '0');
-  const formattedMinutes = String(minutes).padStart(2, '0');
-  const formattedSeconds = String(remainingSeconds).padStart(2, '0');
-
-  return `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
+  var date = new Date(0);
+  date.setSeconds(seconds);
+  var timeString = date.toTimeString().split(' ')[0];
+  return timeString;
 }

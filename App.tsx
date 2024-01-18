@@ -29,6 +29,7 @@ import {useRef} from 'react';
 import SearchBar from './components/SearchBar';
 import Title from './components/Title';
 import Icon from 'react-native-vector-icons/AntDesign';
+import WatchScreen2 from './screens/WatchScreen2';
 init();
 export type AsyncState = 'idle' | 'loading' | 'success' | 'fail' | 'notfound';
 const Stack = createNativeStackNavigator();
@@ -37,6 +38,14 @@ export type NavigationProps = {
   sub: {query: string; page?: number} | undefined;
   mov: {link: string} | undefined;
   watch:
+    | {
+        movie: Movie;
+        season?: Season;
+        episode?: Episode;
+        translation: Translation;
+      }
+    | undefined;
+    watch2:
     | {
         movie: Movie;
         season?: Season;
@@ -80,6 +89,17 @@ export default function App() {
             <Stack.Screen
               name="watch"
               component={WatchScreen}
+              options={{
+                navigationBarHidden: true,
+                statusBarHidden: true,
+                headerShown: false,
+                statusBarTranslucent: true,
+                orientation: 'landscape',
+              }}
+            />
+            <Stack.Screen
+              name="watch2"
+              component={WatchScreen2}
               options={{
                 navigationBarHidden: true,
                 statusBarHidden: true,

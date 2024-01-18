@@ -363,7 +363,7 @@ function WatchScreen() {
             'opacity-80 border-2 border-white rounded-md flex flex-row px-4 items-center justify-between',
           )}>
           <Text className="text-white flex-grow-0">
-            {getTime(currentTime)}
+            {getTime(sliderVal)}
             {' / '}
             {getTime(totalTime)}
           </Text>
@@ -434,6 +434,7 @@ function WatchScreen() {
               ref={qualityDropdown}
               data={videoUrl.videos}
               containerStyle={styles.dropdown}
+              dropdownPosition='auto'
               renderItem={item => {
                 return (
                   <View className="p-1 m-2">
@@ -466,16 +467,7 @@ function WatchScreen() {
               onChange={changedItem => setCurrentVideo(changedItem)}
             />
           </View>
-          <View className="flex-grow-0">
-            <Button onClick={() => setMute(!muted)}>
-              <Icon
-                style={styles.icon}
-                name={muted ? 'volume-mute' : 'volume-up'}
-                size={30}
-                color={'#fff'}
-              />
-            </Button>
-          </View>
+          
         </View>
       )}
       {playlistVisible && (
@@ -522,6 +514,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     backgroundColor: 'black',
     opacity: 0.8,
+    width:'80%'
   },
   icon: {padding: 3, margin: 1},
 });

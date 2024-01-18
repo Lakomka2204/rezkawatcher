@@ -35,7 +35,8 @@ const Button: React.FC<WrapperProps> = ({ children, style,className, ...rest }) 
         };
   return (
     <Animated.View style={{transform:[{scale:animatedScale}]}} className={className}>
-      <Pressable {...rest} 
+      <Pressable {...rest}
+      style={style}
       onPress={buttonPress}
       onPressIn={buttonPressIn} 
       onPressOut={buttonPressOut}

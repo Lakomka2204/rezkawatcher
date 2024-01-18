@@ -15,7 +15,7 @@ type ExpansionType = 'translation' | 'season' | 'episode' | 'movie';
 type MovieType = 'series' | 'movie';
 type MovieInfo = {
   id: string;
-  favs: string;
+  favs?: string;
 };
 type returnFn = (watchInfo: {item: Item; type: MovieType}) => void;
 interface Selected {
@@ -115,8 +115,8 @@ function PlaylistItem(args: {
             }
             const seasons = await getTranslationSeries(
               args.info.id,
-              args.info.favs,
               args.item.translation,
+              args.info.favs
             );
             const childSeasons = seasons.map<Item>(x => ({
               name: x.name,
