@@ -67,8 +67,8 @@ function MovieScreen() {
         if (tr) {
           const seasons = await getTranslationSeries(
             movie?.id!,
-            movie?.favs!,
             translation ?? translations[0],
+            movie?.favs,
           );
           setSeasons(seasons);
           setSeason(undefined);
@@ -88,7 +88,7 @@ function MovieScreen() {
       return Alert.alert('No translation', 'Please select season & episode');
     }
     if (movie)
-      nav.push('watch', {
+      nav.push('watch2', {
         movie: movie,
         translation,
         season,
