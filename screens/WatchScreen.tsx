@@ -1,521 +1,380 @@
-import React, {useEffect, useRef, useState} from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import {useCallback} from 'react';
-import {
-  RouteProp,
-  useFocusEffect,
-  useNavigation,
-  useRoute,
-  useTheme,
-} from '@react-navigation/native';
-import Video, {TextTrackType} from 'react-native-video';
-import Button from '../components/Button';
-import cn from 'classnames';
-import Icon from 'react-native-vector-icons/FontAwesome5';
-import Slider from '@react-native-community/slider';
-import {
-  Movie,
-  VideoProps,
-  getStream,
-  Season,
-  Episode,
-  Translation,
-  getMovie,
-  getTime,
-  VideoInfo,
-  Subtitles as Subs,
-} from '../logic/movie';
-import convert from 'react-native-video-cache';
-import {Dropdown, IDropdownRef} from 'react-native-element-dropdown';
-import {NavigationProps} from '../App';
-import Playlist from '../components/Playlist';
-let isSeries = false;
-const timeout = 6000;
-function formatSubtitles(data: Subs[]): {
-  title?: string | undefined;
-  language?: string | undefined;
-  type: 'text/vtt' | 'application/x-subrip' | 'application/ttml+xml';
-  uri: string;
-}[] {
-  return data.map(x => ({
-    type: TextTrackType.VTT,
-    uri: x.url,
-    language: x.language,
-    title: x.displayLanguage,
-  }));
+import { RouteProp, useFocusEffect, useNavigation, useRoute, useTheme } from "@react-navigation/native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
+import Video from "react-native-video";
+import { Episode, Movie, Season, Translation, VideoInfo, VideoProps, VideoQuality, getMovie, getStream, getTime } from "../logic/movie";
+import { NavigationProps } from "../App";
+import Icon from "react-native-vector-icons/FontAwesome5";
+import Button from "../components/Button";
+import Slider from "@react-native-community/slider";
+import Playlist from "../components/Playlist";
+let hasSeries = false;
+interface MenuItem {
+    text: string;
+    onClick: () => void;
+    arrow?: 'none' | 'back' | 'forward';
+    closing: boolean;
 }
-function WatchScreen() {
-  useFocusEffect(
-    useCallback(() => {
-      StatusBar.setHidden(true, 'fade');
-      return () => {
-        StatusBar.setHidden(false, 'fade');
-      };
-    }, []),
-  );
-  const {colors, dark} = useTheme();
-  const route = useRoute<RouteProp<NavigationProps>>();
-  const nav = useNavigation();
-  const player = useRef<Video>(null);
-  const qualityDropdown = useRef<IDropdownRef>(null);
-  const subtitleDropdown = useRef<IDropdownRef>(null);
-  const [paused, setPause] = useState(false);
-  const [muted, setMute] = useState(false);
-  const [sliderVal, setSliderVal] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [totalTime, setTotalTime] = useState(0);
-  const [ccEnabled, setCcEnabled] = useState(false);
-  const [isVisible, setVisible] = useState(false);
-  const [visibleTimerId, setVTimerId] = useState<NodeJS.Timeout>();
-  const [playlistVisible, setPlaylistVisible] = useState(false);
-  const [season, setSeason] = useState<Season>();
-  const [episode, setEpisode] = useState<Episode>();
-  const [translation, setTranslation] = useState<Translation>();
-  const [isLoading, setLoading] = useState(false);
-  const [movie, setMovie] = useState<Movie>();
-  const [currentVideo, setCurrentVideo] = useState<VideoProps>();
-  const [currentSubtitles, setCurrentSubs] = useState<Subs>();
-  const [videoUrl, setVideoUrl] = useState<VideoInfo>({
-    videos: [],
-    subtitles: [],
-  });
-  const [episodeIndex, setEpIndex] = useState(-1);
-  const [isEnd, setEnd] = useState(false);
-  const [cachedUrl, setCached] = useState(
-    'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-  );
-  function handleRelease() {
-    setVTimerId(
-      setTimeout(() => {
-        setVisible(false);
-        clearTimeout(visibleTimerId);
-      }, timeout),
+type Menu = MenuItem[];
+
+const HIDEUI_TIMEOUT = 6000;
+const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+
+export default function WatchScreen() {
+    useFocusEffect(
+        useCallback(() => {
+            StatusBar.setHidden(true, 'fade');
+            return () => {
+                StatusBar.setHidden(false, 'fade');
+            };
+        }, []),
     );
-  }
-  function handlePress() {
-    if (visibleTimerId) clearTimeout(visibleTimerId);
-  }
-  function handleGeneralTouch() {
-    setVisible(!isVisible);
-  }
-  useEffect(() => {
-    if (!currentSubtitles) return;
-    console.log('changed current subs', currentSubtitles);
-    console.log('vp props', player.current?.props.textTracks);
-    console.log('vp props', player.current?.props.selectedTextTrack);
-  }, [currentSubtitles]);
-  useEffect(() => {
-    // @ts-ignore
-    if (!route.params['movie']) {
-      Alert.alert('No movie was provided!');
-      nav.goBack();
-      return;
+    // Theme
+    const { colors } = useTheme();
+    // Route props
+    const route = useRoute<RouteProp<NavigationProps, "watch2">>();
+    // Navigation prop
+    const nav = useNavigation();
+    // Video object ref
+    const player = useRef<Video>(null);
+
+    // Video paused
+    const [paused, setPause] = useState(false);
+    // Current video current time
+    const [currentTime, setCurrentTime] = useState(0);
+    // Current video total time
+    const [totalTime, setTotalTime] = useState(0);
+    // UI hide timer
+    const [timer, setTimer] = useState<NodeJS.Timeout>();
+    // UI visible
+    const [isVisible, setVisible] = useState(false);
+    // UI playlist visible
+    const [playlistVisible, setPlaylistVisible] = useState(false);
+    // Video loading
+    const [isLoading, setLoading] = useState(false);
+    // Video has ended
+    const [isEnd, setEnd] = useState(false);
+    // Video speed
+    const [speed, setSpeed] = useState(1);
+
+    // Current movie object
+    const [movie, setMovie] = useState<Movie>()
+    // Current season object
+    const [season, setSeason] = useState<Season>();
+    // Current episode object
+    const [episode, setEpisode] = useState<Episode>();
+    // Current translation object
+    const [translation, setTranslation] = useState<Translation>();
+    // All available video qualities with urls
+    const [sources, setSources] = useState<VideoInfo>();
+    // Current video source
+    const [source, setSource] = useState<VideoProps>();
+    // Selected quality
+    // Todo replace value from asyncstorage
+    const [quality, setQuality] = useState<VideoQuality>('360p');
+    // Settings menu visibile
+    const [settingsVisible, setSettingsVisible] = useState(false);
+    // Back button
+    const backButton: MenuItem = {
+        text: "Back",
+        arrow: 'back',
+        onClick() {
+            setSettingsMenu(initialMenu)
+        },
+        closing: false,
     }
-    // @ts-ignore
-    const paramMovie = route.params['movie'] as Movie;
-    setMovie(paramMovie);
-    // @ts-ignore
-    const paramSeason = route.params['season'] as Season;
-    setSeason(paramSeason);
-    // @ts-ignore
-    const paramEpisode = route.params['episode'] as Episode;
-    setEpisode(paramEpisode);
-    // @ts-ignore
-    const paramTranslation = route.params['translation'] as Translation;
-    setTranslation(paramTranslation);
-  }, []);
-  useEffect(() => {
-    async function updateMedia() {
-      if (!translation) return;
-
-      if (season && episode) {
-        if (!movie) return;
-        const videos = await getStream(
-          movie?.id,
-          season?.id,
-          episode?.id,
-          translation?.id,
-        );
-        isSeries = true;
-        setVideoUrl(videos);
-      } else {
-        if (!movie) return;
-        const movies = await getMovie(movie?.id, movie?.favs, translation);
-        setVideoUrl(movies);
-      }
-      if (!isSeries) return setEpIndex(-1);
-      // is first episode
-      const episodeIndex = season?.episodes.indexOf(episode!);
-      setEpIndex(episodeIndex ?? -1);
+    // Start menu
+    let initialMenu: Menu = [
+        {
+            arrow: 'forward',
+            text: "Speed",
+            closing: false,
+            onClick() {
+                setSettingsMenu([
+                    backButton,
+                    ...SPEEDS.map(x => ({ text: `x${x}`, onClick() { setSpeed(x) }, closing: true }))
+                ])
+            }
+        },
+        {
+            arrow: 'forward',
+            text: "Quality",
+            closing: false,
+            onClick() {
+                setSettingsMenu([
+                    backButton,
+                    ...sources?.videos.map(x => ({ text: x.quality.toString(), onClick() { setQuality(x.quality); setSource(x) }, closing: true })) ?? []
+                ])
+            }
+        }
+    ]
+    // Settings menu
+    const [settingsMenu, setSettingsMenu] = useState<Menu>(initialMenu);
+    useEffect(() => {
+        // Hold UI while settings menu is open
+        settingsVisible ? showUI() : hideUI()
+    }, [settingsVisible])
+    useEffect(() => {
+        if (isLoading) return;
+        // Go back to the timestamp when changing between qualities,
+        // don't know how will work when changing between series
+        player.current?.seek(currentTime);
+    }, [isLoading]);
+    // Update settings quality list
+    useEffect(() => {
+        setSettingsMenu(initialMenu);
+    }, [sources])
+    // Reset playtime when changing between series
+    useEffect(() => {
+        setCurrentTime(0);
+        player.current?.seek(0,0);
+    }, [season, episode])
+    useEffect(() => {
+        setSettingsMenu(initialMenu);
+    }, [settingsVisible]);
+    function hideUI() {
+        setSettingsVisible(false);
+        setTimer(
+            setTimeout(() => {
+                setVisible(false);
+                clearTimeout(timer);
+            }, HIDEUI_TIMEOUT)
+        )
     }
-    updateMedia();
-  }, [episode, season, translation]);
-  useEffect(() => {
-    if (videoUrl?.videos.length == 0) return;
-    player.current?.seek(0);
-    setCurrentTime(0);
-    setSliderVal(0);
-    setCurrentVideo(videoUrl?.videos[0]);
-    if (videoUrl.subtitles.length > 0)
-      setCurrentSubs(
-        videoUrl.subtitles.find(x => x.language === videoUrl.defaultSubtitle) ??
-          videoUrl.subtitles[0],
-      );
-  }, [videoUrl]);
-  useEffect(() => {
-    if (currentVideo?.streamUrl) {
-      setCurrentTime(0);
-      setSliderVal(0);
-      setCached(convert(currentVideo?.streamUrl));
+    function showUI() {
+        if (timer) clearTimeout(timer);
     }
-  }, [currentVideo]);
-  useEffect(() => {
-    if (isLoading) return;
-    player.current?.seek(currentTime);
-  }, [isLoading]);
-
-  useEffect(() => {
-    if (!paused && isEnd) setEnd(false);
-  }, [paused]);
-
-  useEffect(() => {
-    return () => {
-      if (visibleTimerId) clearTimeout(visibleTimerId);
-    };
-  }, [visibleTimerId]);
-
-  return (
-    <View className="w-full h-full bg-black">
-      <Video
-        className="absolute left-0 right-0 top-0 bottom-0"
-        resizeMode="contain"
-        fullscreenOrientation="landscape"
-        fullscreen
-        onSeek={() => {
-          if (isEnd) setPause(false);
-        }}
-        onPlaybackStalled={() => setLoading(true)}
-        onPlaybackResume={() => setLoading(false)}
-        onReadyForDisplay={() => setLoading(false)}
-        allowsExternalPlayback
-        //@ts-ignore
-        source={{uri: cachedUrl}}
-        ref={player}
-        paused={paused}
-        muted={muted}
-        textTracks={formatSubtitles(videoUrl.subtitles)}
-        selectedTextTrack={{
-          type: ccEnabled ? 'language' : 'disabled',
-          value: currentSubtitles?.displayLanguage,
-        }}
-        onProgress={p => setCurrentTime(p.currentTime)}
-        onLoad={data => {
-          setTotalTime(data.duration);
-          setLoading(false);
-        }}
-        onLoadStart={() => setLoading(true)}
-        onEnd={() => {
-          setPause(true);
-          setEnd(true);
-          setVisible(true);
-        }}
-        onError={e => console.log('VP ERROR', e.error.errorString)}
-      />
-      <Pressable
-        onPress={handleGeneralTouch}
-        onPressIn={handlePress}
-        onPressOut={handleRelease}
-        android_disableSound
-        className={cn(
-          'absolute top-8 bottom-8 left-8 right-8 flex-1 justify-center',
-        )}>
-        {isVisible && (
-          <View className="flex flex-row items-center justify-around">
-            {isEnd ? (
-              <>
-                <Pressable
-                  android_disableSound
-                  onPress={() => {
-                    player.current?.seek(0);
-                    setPause(false);
-                  }}
-                  className={cn('bg-black opacity-90 rounded-md py-2 px-8')}>
-                  <Icon name="redo" size={64} color={'#fff'} />
-                </Pressable>
-                {episodeIndex < season!.episodes.length - 1 && (
-                  <Pressable
-                    android_disableSound
-                    onPress={() => {
-                      setEpisode(season?.episodes[episodeIndex + 1]);
-                      setPause(false);
-                    }}
-                    className={cn('bg-black opacity-90 rounded-md py-2 px-8')}>
-                    <View className=" flex flex-col items-center">
-                      <Icon name="step-forward" size={40} color={'#fff'} />
-                      <Text className="text-white text-lg">
-                        {season?.episodes[episodeIndex + 1].name}
-                      </Text>
-                    </View>
-                  </Pressable>
-                )}
-              </>
-            ) : (
-              <>
-                <Pressable
-                  android_disableSound
-                  onPress={() => {
-                    if (!isLoading) player.current?.seek(currentTime - 5);
-                  }} //todo replace with changeable value
-                  className={cn('bg-black opacity-90 rounded-md py-2 px-8')}>
-                  <Icon name={'backward'} size={64} color={'#fff'} />
-                </Pressable>
-                <Pressable
-                  android_disableSound
-                  onPress={() => {
-                    if (!isLoading) setPause(!paused);
-                  }}
-                  className={cn('bg-black opacity-90 rounded-md py-2 px-8')}>
-                  {isLoading ? (
-                    <ActivityIndicator size={64} color={'white'} />
-                  ) : (
-                    <Icon
-                      name={paused ? 'play' : 'pause'}
-                      size={64}
-                      color={'#fff'}
-                    />
-                  )}
-                </Pressable>
-                <Pressable
-                  android_disableSound
-                  onPress={() => {
-                    if (!isLoading) player.current?.seek(currentTime + 5);
-                  }} //todo replace with changeable value
-                  className={cn('bg-black opacity-90 rounded-md py-2 px-8')}>
-                  <Icon name={'forward'} size={64} color={'#fff'} />
-                </Pressable>
-              </>
-            )}
-          </View>
-        )}
-      </Pressable>
-      {isVisible && (
-        <View className="absolute left-1 top-1">
-          <Button onClick={() => setPlaylistVisible(!playlistVisible)}>
-            <View className="bg-black opacity-80 border-2 border-white rounded-md flex flex-row px-4 items-center">
-              <View className="flex flex-row items-center justify-center">
-                <Icon
-                  name={'bars'}
-                  solid={ccEnabled}
-                  size={30}
-                  color={'#fff'}
-                />
-                <Text className="text-white text-xl ml-1">
-                  {season?.name} {episode?.name} {translation?.name}
-                </Text>
-              </View>
-            </View>
-          </Button>
-        </View>
-      )}
-      {isVisible && isSeries && (
-        <View
-          className={cn(
-            'absolute right-1 top-1',
-            'bg-black opacity-80 border-2 border-white rounded-md flex flex-row items-center',
-          )}>
-          {episodeIndex > 0 && (
-            <View className="p-2 py-1">
-              <Button
-                onClick={() => {
-                  setEpisode(season?.episodes[episodeIndex - 1]);
-                  setPause(false);
-                }}>
-                <Icon name="fast-backward" size={36} color={'white'} />
-              </Button>
-            </View>
-          )}
-          {episodeIndex < (season?.episodes.length ?? 0) - 1 && (
-            <View className="p-2 py-1">
-              <Button
-                onClick={() => {
-                  setEpisode(season?.episodes[episodeIndex + 1]);
-                  setPause(false);
-                }}>
-                <Icon name="fast-forward" size={36} color={'white'} />
-              </Button>
-            </View>
-          )}
-        </View>
-      )}
-      {isVisible && (
-        <View
-          className={cn(
-            'absolute right-1 left-1 bottom-1 bg-black',
-            'opacity-80 border-2 border-white rounded-md flex flex-row px-4 items-center justify-between',
-          )}>
-          <Text className="text-white flex-grow-0">
-            {getTime(sliderVal)}
-            {' / '}
-            {getTime(totalTime)}
-          </Text>
-          <View className={'flex-grow'}>
-            <Slider
-              thumbTintColor="white"
-              minimumTrackTintColor="#ccc"
-              maximumTrackTintColor="white"
-              onValueChange={v => setSliderVal(v)}
-              value={currentTime / totalTime}
-              onResponderStart={handlePress}
-              onResponderEnd={() => {
-                player.current?.seek(sliderVal * totalTime);
-                handleRelease();
-              }}
-            />
-          </View>
-          {videoUrl.subtitles.length > 0 && (
-            <View className="flex-grow-0">
-              <Dropdown
-                ref={subtitleDropdown}
-                data={videoUrl.subtitles}
-                containerStyle={styles.dropdown}
-                onBlur={() => handleRelease()}
-                onFocus={() => handlePress()}
-                activeColor={colors.border}
-                renderItem={item => {
-                  return (
-                    <View className="p-1 m-2">
-                      <Text
-                        className={cn(
-                          'text-white',
-                          currentSubtitles?.language === item.language
-                            ? 'font-bold text-xl'
-                            : 'text-lg',
-                        )}>
-                        {item.displayLanguage}
-                      </Text>
-                    </View>
-                  );
-                }}
-                labelField={'displayLanguage'}
-                valueField={'url'}
-                mode="modal"
-                autoScroll
-                keyboardAvoiding
-                renderRightIcon={v => null}
-                renderLeftIcon={v => (
-                  <Button
-                    onClick={() => setCcEnabled(!ccEnabled)}
-                    onLongPress={() => {
-                      subtitleDropdown.current?.open();
-                    }}>
-                    <Icon
-                      name={'closed-captioning'}
-                      solid={ccEnabled}
-                      size={30}
-                      color={'#fff'}
-                    />
-                  </Button>
-                )}
-                onChange={changedItem => setCurrentSubs(changedItem)}
-              />
-            </View>
-          )}
-          <View className="flex-grow-0">
-            <Dropdown
-              ref={qualityDropdown}
-              data={videoUrl.videos}
-              containerStyle={styles.dropdown}
-              dropdownPosition='auto'
-              renderItem={item => {
-                return (
-                  <View className="p-1 m-2">
-                    <Text
-                      className={cn(
-                        'text-white',
-                        currentVideo?.quality === item.quality
-                          ? 'font-bold text-xl'
-                          : 'text-lg',
-                      )}>
-                      {item.quality}
-                    </Text>
-                  </View>
+    function toggleUI() {
+        setVisible(!isVisible);
+    }
+    // Grabbing parameters from route
+    useEffect(() => {
+        if (!route.params) {
+            Alert.alert("Error", "No movie was provided!");
+            return nav.goBack();
+        }
+        const pMovie = route.params.movie;
+        const pSeason = route.params.season;
+        const pEpisode = route.params.episode;
+        const pTranslation = route.params.translation;
+        console.log('grabbed info', pMovie.name, pSeason?.name, pEpisode?.name, pTranslation.id);
+        if (!movie)
+            setMovie(pMovie);
+        if (!translation)
+            setTranslation(pTranslation);
+        if (!season)
+            setSeason(pSeason);
+        if (!episode)
+            setEpisode(pEpisode);
+    }, []);
+    // Updating media sources on translation/season/episode change
+    useEffect(() => {
+        async function fetchMedia() {
+            if (!translation) return;
+            // check if movie has seasons or eps, if it has,
+            // grabbing video sources from one endpoint, otherwise from another
+            // w/ different params
+            if (season && episode) {
+                if (!movie) return;
+                const videoSources = await getStream(
+                    movie.id,
+                    season.id,
+                    episode.id,
+                    translation.id
                 );
-              }}
-              labelField="quality"
-              valueField="streamUrl"
-              mode="modal"
-              autoScroll
-              activeColor={colors.border}
-              onBlur={() => handleRelease()}
-              onFocus={() => handlePress()}
-              keyboardAvoiding
-              renderRightIcon={v => null}
-              renderLeftIcon={v => (
-                <Button onClick={() => qualityDropdown.current?.open()}>
-                  <Icon name={'cog'} size={30} color={'#fff'} />
-                </Button>
-              )}
-              onChange={changedItem => setCurrentVideo(changedItem)}
+                hasSeries = true;
+                setSources(videoSources);
+            }
+            else {
+                if (!movie) return;
+                const movieSources = await getMovie(
+                    movie.id,
+                    movie.favs,
+                    translation
+                );
+                setSources(movieSources);
+                hasSeries = false;
+            }
+        }
+        fetchMedia();
+    }, [translation, season, episode]);
+    // Change media if video sources (sources) changed
+    useEffect(() => {
+        if (sources?.videos.length == 0) return;
+        const preferredQuality = sources?.videos.find(x => x.quality == quality);
+        if (preferredQuality)
+            setSource(preferredQuality);
+        else
+            setSource(sources?.videos[0]);
+    }, [sources]);
+
+    return (
+        <View style={StyleSheet.absoluteFill} className="bg-black">
+            <Video
+                ref={player}
+                fullscreenOrientation="landscape"
+                fullscreen
+                paused={paused}
+                rate={speed}
+                className="absolute left-0 right-0 top-0 bottom-0"
+                resizeMode="contain"
+                onSeek={() => {
+                    if (isEnd) setPause(false);
+                }}
+                onPlaybackStalled={() => setLoading(true)}
+                onPlaybackResume={() => setLoading(false)}
+                onReadyForDisplay={() => setLoading(false)}
+                allowsExternalPlayback
+                onProgress={p => setCurrentTime(p.currentTime)}
+                onLoad={data => {
+                    setTotalTime(data.duration);
+                    setLoading(false);
+                }}
+                onLoadStart={() => setLoading(true)}
+                onEnd={() => {
+                    setPause(true);
+                    setEnd(true);
+                    setVisible(true);
+                }}
+                source={{
+                    uri: source?.streamUrl ||
+                        'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
+                }}
             />
-          </View>
-          
+            <Pressable
+                onPressIn={showUI}
+                onPressOut={hideUI}
+                onPress={toggleUI}
+                android_disableSound
+                style={StyleSheet.absoluteFill}
+            />
+            {/* UI */}
+            {isVisible &&
+                <View
+                    style={StyleSheet.absoluteFill}
+                    className="opacity-50 bg-black"
+                    focusable={false}
+                    pointerEvents="none"
+                />
+            }
+            {/* Play buttons */}
+            {isVisible &&
+                <View style={StyleSheet.absoluteFill} className="flex flex-row justify-evenly items-center">
+                    <Pressable className="px-9 py-6" android_disableSound>
+                        <Icon name="step-backward" size={32} color={colors.background} />
+                    </Pressable>
+                    <Pressable className="px-9 py-6" android_disableSound
+                        onPress={() => setPause(!paused)}>
+                        {
+                            isLoading
+                                ?
+                                <ActivityIndicator size={32} color={colors.background} />
+                                :
+                                <Icon name={paused ? "play" : "pause"} size={32} color={colors.background} />
+                        }
+                    </Pressable>
+                    <Pressable className="px-9 py-6" android_disableSound>
+                        <Icon name="step-forward" size={32} color={colors.background} />
+                    </Pressable>
+                </View>
+            }
+            {/* Playlist control */}
+            {isVisible &&
+                <View className="absolute top-4 left-8 right-auto bottom-auto p-2">
+                    <Button className="flex flex-row items-center" android_disableSound onClick={() => setPlaylistVisible(true)}>
+                        <Icon name="bars" size={24} color={colors.background} />
+                        <Text className="text-white outline text-xl mx-2">{translation?.name} / {season?.name} {episode?.name}</Text>
+                    </Button>
+                </View>
+            }
+            {/* Timeline */}
+            {isVisible &&
+                <View className="absolute bottom-4 py-4 px-6 flex flex-row w-full items-center">
+                    <Text className="flex-grow-0 text-white ">{getTime(currentTime)} / {getTime(totalTime)}</Text>
+                    <View className="flex-grow w-auto">
+                        <Slider
+                            thumbTintColor={colors.background}
+                            minimumTrackTintColor={colors.border}
+                            maximumTrackTintColor={colors.background}
+                            value={currentTime / totalTime}
+                            onSlidingStart={showUI}
+                            onSlidingComplete={(v) => {
+                                player.current?.seek(v * totalTime);
+                                hideUI()
+                            }}
+                        />
+                    </View>
+                </View>
+            }
+            {/* Playback settings */}
+            {isVisible &&
+                <View className="absolute top-4 right-8 left-auto bottom-auto p-2 flex items-end">
+                    <Pressable onPress={() => setSettingsVisible(!settingsVisible)}>
+                        <Icon name="cog" size={24} color={colors.background} />
+                    </Pressable>
+                    {
+                        settingsVisible &&
+                        <FlatList data={settingsMenu}
+                            className="border"
+                            style={{ backgroundColor: colors.background, borderColor: colors.border }}
+                            contentContainerStyle={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+                            renderItem={({ item }) => (
+                                <Pressable onPress={() => {
+                                    item.onClick();
+                                    if (item.closing) {
+                                        setSettingsMenu(initialMenu);
+                                        setSettingsVisible(false);
+                                    }
+                                }}
+                                    className="px-2 py-1 flex flex-row items-center">
+                                    {
+                                        item.arrow == "back" &&
+                                        <Icon style={{ paddingRight: 8 }} name="chevron-left" size={18} />
+                                    }
+                                    <Text className="text-black text-lg">{item.text}</Text>
+                                    {
+                                        item.arrow == "forward" &&
+                                        <Icon style={{ paddingLeft: 8 }} name="chevron-right" size={18} />
+                                    }
+                                </Pressable>
+                            )} />
+                    }
+                </View>
+            }
+            {playlistVisible &&
+                <Pressable style={StyleSheet.absoluteFill}
+                    onPress={() => setPlaylistVisible(false)}
+                >
+                    <ScrollView className="absolute left-0 top-0 bottom-0 bg-black opacity-80 w-1/2 max-w-screen-sm p-3">
+                        <Playlist
+                            returnFn={({ type, item }) => {
+                                switch (type) {
+                                    case "series":
+                                        setSeason(item.season);
+                                        setEpisode(item.episode);
+                                    case 'movie':
+                                        setTranslation(item.translation);
+                                        break;
+                                }
+                                setPlaylistVisible(false);
+                            }}
+                            selected={{
+                                episode: episode?.id,
+                                season: season?.id,
+                                translation: translation?.id
+                            }}
+                            level={0}
+                            items={movie?.translators.map(x => ({
+                                name: x.name,
+                                translation: x,
+                                type: "translation"
+                            })) ?? []}
+                            info={{ favs: movie?.favs, id: movie!.id }}
+                            type={hasSeries ? 'series' : 'movie'}
+                        />
+                    </ScrollView>
+                </Pressable>
+            }
         </View>
-      )}
-      {playlistVisible && (
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={() => setPlaylistVisible(false)}>
-          <ScrollView className="absolute left-0 top-0 bottom-0 bg-black opacity-80 w-1/2 max-w-screen-sm p-3">
-            <Playlist
-              returnFn={({type, item}) => {
-                switch (type) {
-                  case 'series':
-                    setSeason(item.season);
-                    setEpisode(item.episode);
-                  case 'movie':
-                    setTranslation(item.translation);
-                    break;
-                }
-                setPlaylistVisible(false);
-              }}
-              selected={{
-                episode: episode?.id,
-                season: season?.id,
-                translation: translation?.id,
-              }}
-              level={0}
-              items={movie!.translators.map(x => ({
-                name: x.name,
-                translation: x,
-                type: 'translation',
-              }))}
-              info={{favs: movie!.favs, id: movie!.id}}
-              type={isSeries ? 'series' : 'movie'}
-            />
-          </ScrollView>
-        </Pressable>
-      )}
-    </View>
-  );
+    )
 }
-const styles = StyleSheet.create({
-  dropdown: {
-    borderRadius: 6,
-    borderColor: 'white',
-    borderWidth: 2,
-    backgroundColor: 'black',
-    opacity: 0.8,
-    width:'80%'
-  },
-  icon: {padding: 3, margin: 1},
-});
-export default WatchScreen;
