@@ -13,7 +13,7 @@ import {useEffect, useState} from 'react';
 import {PreviewMovie, search} from '../logic/movie';
 import Movie from '../components/Movie';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {AsyncState, NavigationProps} from '../App';
+import {AsyncState, NavigationProps} from '../utils/types';
 import cn from 'classnames';
 const numColumns = 2;
 function formatData(data: PreviewMovie[]) {

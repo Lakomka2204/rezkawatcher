@@ -27,7 +27,7 @@ import cn from 'classnames';
 import MovieProperty from '../components/MovieProperty';
 import Button from '../components/Button';
 import { Dropdown } from 'react-native-element-dropdown';
-import { NavigationProps } from '../App';
+import { NavigationProps } from '../utils/types';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 function MovieScreen() {
@@ -86,7 +86,7 @@ function MovieScreen() {
             return Alert.alert('No translation', 'Please select translation');
         }
         if (seasons.length > 0 && !season) {
-            return Alert.alert('No translation', 'Please select season & episode');
+            return Alert.alert('No seasons', 'Please select season & episode');
         }
         if (movie)
             nav.push('watch', {

@@ -122,8 +122,8 @@ describe('movie class methods', () => {
     const translation = movie.translators[6];
     const seasons = await mv.getTranslationSeries(
       movie.id,
-      movie.favs,
       translation,
+      movie.favs,
     );
     expect(seasons.length).toEqual(22);
     expect(seasons[0].episodes[0].cdnUrl).toBeTruthy();
@@ -138,8 +138,8 @@ describe('movie class methods', () => {
     expect(season.episodes[25].id).toEqual('407');
     const firstTranslation = await mv.getTranslationSeries(
       movie.id,
-      movie.favs,
       movie.translators[0],
+      movie.favs,
     );
     const videos = mv.parseCdnUrl(firstTranslation[0].episodes[0].cdnUrl);
     expect(videos.length).toBeGreaterThan(4);

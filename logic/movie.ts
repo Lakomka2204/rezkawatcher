@@ -93,6 +93,29 @@ export class PreviewMovie extends QuickMovie {
     this.type = type;
   }
 }
+export class HistoryMovie extends PreviewMovie {
+    whenWatched: number;
+    watchedTranslation: Translation;
+    watchedSeason?: Season;
+    watchedEpisode?: Episode;
+    constructor(
+        url: string,
+        enabled:boolean,
+        thumbnail: string,
+        type: MovieType,
+        watchedTranslation: Translation,
+        whenWatched: number,
+        watchedSeason?: Season,
+        watchedEpisode?: Episode
+    ) {
+        super(url,enabled,thumbnail,type);
+        this.whenWatched = whenWatched;
+        this.watchedTranslation = watchedTranslation;
+        this.watchedSeason = watchedSeason;
+        this.watchedEpisode = watchedEpisode;
+    }
+}
+
 export class Movie extends PreviewMovie {
   originalName: string;
   description: string;

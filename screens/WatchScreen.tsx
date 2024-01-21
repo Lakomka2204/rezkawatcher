@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
 import Video from "react-native-video";
 import { Episode, Movie, Season, Translation, VideoInfo, VideoProps, VideoQuality, getMovie, getStream, getTime } from "../logic/movie";
-import { NavigationProps } from "../App";
+import { NavigationProps } from "../utils/types";
 import Icon from "react-native-vector-icons/FontAwesome5";
 import Button from "../components/Button";
 import Slider from "@react-native-community/slider";
@@ -32,7 +32,7 @@ export default function WatchScreen() {
     // Theme
     const { colors } = useTheme();
     // Route props
-    const route = useRoute<RouteProp<NavigationProps, "watch2">>();
+    const route = useRoute<RouteProp<NavigationProps, "watch">>();
     // Navigation prop
     const nav = useNavigation();
     // Video object ref
@@ -261,20 +261,20 @@ export default function WatchScreen() {
             {isVisible &&
                 <View style={StyleSheet.absoluteFill} className="flex flex-row justify-evenly items-center">
                     <Pressable className="px-9 py-6" android_disableSound>
-                        <Icon name="step-backward" size={32} color={colors.background} />
+                        <Icon name="step-backward" size={32} color={"white"} />
                     </Pressable>
                     <Pressable className="px-9 py-6" android_disableSound
                         onPress={() => setPause(!paused)}>
                         {
                             isLoading
                                 ?
-                                <ActivityIndicator size={32} color={colors.background} />
+                                <ActivityIndicator size={32} color={"white"} />
                                 :
-                                <Icon name={paused ? "play" : "pause"} size={32} color={colors.background} />
+                                <Icon name={paused ? "play" : "pause"} size={32} color={"white"} />
                         }
                     </Pressable>
                     <Pressable className="px-9 py-6" android_disableSound>
-                        <Icon name="step-forward" size={32} color={colors.background} />
+                        <Icon name="step-forward" size={32} color={"white"} />
                     </Pressable>
                 </View>
             }
@@ -282,7 +282,7 @@ export default function WatchScreen() {
             {isVisible &&
                 <View className="absolute top-4 left-8 right-auto bottom-auto p-2">
                     <Button className="flex flex-row items-center" android_disableSound onClick={() => setPlaylistVisible(true)}>
-                        <Icon name="bars" size={24} color={colors.background} />
+                        <Icon name="bars" size={24} color={"white"} />
                         <Text className="text-white outline text-xl mx-2">{translation?.name} / {season?.name} {episode?.name}</Text>
                     </Button>
                 </View>
@@ -293,9 +293,9 @@ export default function WatchScreen() {
                     <Text className="flex-grow-0 text-white ">{getTime(currentTime)} / {getTime(totalTime)}</Text>
                     <View className="flex-grow w-auto">
                         <Slider
-                            thumbTintColor={colors.background}
+                            thumbTintColor={"white"}
                             minimumTrackTintColor={colors.border}
-                            maximumTrackTintColor={colors.background}
+                            maximumTrackTintColor={"white"}
                             value={currentTime / totalTime}
                             onSlidingStart={showUI}
                             onSlidingComplete={(v) => {
@@ -310,7 +310,7 @@ export default function WatchScreen() {
             {isVisible &&
                 <View className="absolute top-4 right-8 left-auto bottom-auto p-2 flex items-end">
                     <Pressable onPress={() => setSettingsVisible(!settingsVisible)}>
-                        <Icon name="cog" size={24} color={colors.background} />
+                        <Icon name="cog" size={24} color={"white"} />
                     </Pressable>
                     {
                         settingsVisible &&
@@ -331,7 +331,7 @@ export default function WatchScreen() {
                                         item.arrow == "back" &&
                                         <Icon style={{ paddingRight: 8 }} name="chevron-left" size={18} />
                                     }
-                                    <Text className="text-black text-lg">{item.text}</Text>
+                                    <Text className="text-lg" style={{color:colors.text}}>{item.text}</Text>
                                     {
                                         item.arrow == "forward" &&
                                         <Icon style={{ paddingLeft: 8 }} name="chevron-right" size={18} />

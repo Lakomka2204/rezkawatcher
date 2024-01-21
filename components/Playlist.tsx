@@ -10,7 +10,7 @@ import {
   Translation,
   getTranslationSeries,
 } from '../logic/movie';
-import {AsyncState} from '../App';
+import {AsyncState} from '../utils/types';
 type ExpansionType = 'translation' | 'season' | 'episode' | 'movie';
 type MovieType = 'series' | 'movie';
 type MovieInfo = {

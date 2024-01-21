@@ -12,7 +12,7 @@ import cn from 'classnames';
 import {useNavigation, useTheme} from '@react-navigation/native';
 import {PreviewMovie} from '../logic/movie';
 import Button from './Button';
-import {NavigationProps} from '../App';
+import {NavigationProps} from '../utils/types';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
 const Movie: React.FC<{movie: PreviewMovie}> = ({movie}) => {

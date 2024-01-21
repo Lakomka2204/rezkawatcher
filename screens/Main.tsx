@@ -11,7 +11,7 @@ import {
   useTheme,
 } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/AntDesign';
-import {NavigationProps} from '../App';
+import {NavigationProps} from '../utils/types';
 
 function Main() {
   const nav = useNavigation<NavigationProp<NavigationProps>>();

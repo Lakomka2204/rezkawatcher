@@ -13,7 +13,7 @@ import {
   TAutocompleteDropdownItem,
 } from 'react-native-autocomplete-dropdown';
 import {quickSearch} from '../logic/movie';
-import {NavigationProps} from '../App';
+import {NavigationProps} from '../utils/types';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
 interface Result {

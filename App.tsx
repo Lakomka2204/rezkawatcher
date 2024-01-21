@@ -13,7 +13,6 @@ NativeWindStyleSheet.setOutput({
     default: 'native',
 });
 import { init } from './logic/init';
-import { Episode, Movie, Season, Translation } from './logic/movie';
 import {
     DarkTheme,
     DefaultTheme,
@@ -23,23 +22,10 @@ import {
 import { useRef } from 'react';
 import WatchScreen from './screens/WatchScreen';
 import MovieScreen2 from './screens/MovieScreen2';
+import { NavigationProps } from './utils/types';
 init();
-export type AsyncState = 'idle' | 'loading' | 'success' | 'fail' | 'notfound';
 const Stack = createNativeStackNavigator();
-export type NavigationProps = {
-    main: { search?: boolean } | undefined;
-    sub: { query: string; page?: number } | undefined;
-    mov: { link: string } | undefined;
-    watch:
-    | {
-        movie: Movie;
-        season?: Season;
-        episode?: Episode;
-        translation: Translation;
-    }
-    | undefined;
-    mov2: { link: string } | undefined;
-};
+
 export default function App() {
     const nav = useRef<NavigationContainerRef<NavigationProps>>(null);
     const theme = useColorScheme();
