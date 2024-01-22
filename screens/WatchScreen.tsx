@@ -3,24 +3,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
 import Video from "react-native-video";
 import { Episode, Movie, Season, Translation, VideoInfo, VideoProps, VideoQuality, getMovie, getStream, getTime } from "../logic/movie";
-import { NavigationProps } from "../utils/types";
+import { NavigationProps, Speed } from "../utils/types";
 import Icon from "react-native-vector-icons/FontAwesome5";
 import Button from "../components/Button";
 import Slider from "@react-native-community/slider";
 import Playlist from "../components/Playlist";
 import { WatchTime, saveWatchTime } from "../storage/watchtime";
+import { Dropdown } from "react-native-element-dropdown";
 let hasSeries = false;
-interface MenuItem {
-    text: string;
-    onClick: () => void;
-    arrow?: 'none' | 'back' | 'forward';
-    closing: boolean;
-}
-type Menu = MenuItem[];
 
 const HIDEUI_TIMEOUT = 6000;
-const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
-
+const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map(x => new Speed(x));
+const SAVE_INTERVAL = 10;
 export default function WatchScreen() {
     useFocusEffect(
         useCallback(() => {
@@ -32,6 +26,8 @@ export default function WatchScreen() {
     );
     // Theme
     const { colors } = useTheme();
+    // Themed styles
+    const styles = makeStyles(colors);
     // Route props
     const route = useRoute<RouteProp<NavigationProps, "watch">>();
     // Navigation prop
@@ -56,7 +52,7 @@ export default function WatchScreen() {
     // Video has ended
     const [isEnd, setEnd] = useState(false);
     // Video speed
-    const [speed, setSpeed] = useState(1);
+    const [speed, setSpeed] = useState<Speed>(new Speed(1));
 
     // Current movie object
     const [movie, setMovie] = useState<Movie>()
@@ -77,42 +73,6 @@ export default function WatchScreen() {
     const [settingsVisible, setSettingsVisible] = useState(false);
     // Watch time
     const [wt, setWT] = useState<WatchTime | undefined>(route.params?.watchTime);
-    // Back button
-    const backButton: MenuItem = {
-        text: "Back",
-        arrow: 'back',
-        onClick() {
-            setSettingsMenu(initialMenu)
-        },
-        closing: false,
-    }
-    // Start menu
-    let initialMenu: Menu = [
-        {
-            arrow: 'forward',
-            text: "Speed",
-            closing: false,
-            onClick() {
-                setSettingsMenu([
-                    backButton,
-                    ...SPEEDS.map(x => ({ text: `x${x}`, onClick() { setSpeed(x) }, closing: true }))
-                ])
-            }
-        },
-        {
-            arrow: 'forward',
-            text: "Quality",
-            closing: false,
-            onClick() {
-                setSettingsMenu([
-                    backButton,
-                    ...sources?.videos.map(x => ({ text: x.quality.toString(), onClick() { setQuality(x.quality); setSource(x) }, closing: true })) ?? []
-                ])
-            }
-        }
-    ]
-    // Settings menu
-    const [settingsMenu, setSettingsMenu] = useState<Menu>(initialMenu);
     useEffect(() => {
         // Hold UI while settings menu is open
         settingsVisible ? showUI() : hideUI()
@@ -124,25 +84,18 @@ export default function WatchScreen() {
         player.current?.seek(currentTime);
     }, [isLoading]);
     // Update settings quality list
-    useEffect(() => {
-        setSettingsMenu(initialMenu);
-    }, [sources])
     // Reset playtime when changing between series
     useEffect(() => {
         setCurrentTime(0);
         player.current?.seek(0, 0);
     }, [season, episode])
-    // Revert menu when settings get closed
-    useEffect(() => {
-        setSettingsMenu(initialMenu);
-    }, [settingsVisible]);
     // save playback to storage every X seconds
     // todo replace X seconds with saved settings value
     useEffect(() => {
         if (currentTime == 0) return;
         if (!movie) return;
-        //! every 5 seconds save playback 
-        if (currentTime % 5 > 4.6) {
+        //! every X seconds save playback 
+        if (currentTime % SAVE_INTERVAL > (SAVE_INTERVAL - 0.4)) {
             console.log('saving playback', currentTime, quality);
             saveWatchTime(movie.id, { secondsWatched: currentTime, videoQuality: quality });
         }
@@ -164,13 +117,13 @@ export default function WatchScreen() {
     }
     useEffect(() => {
         if (totalTime == 0) return;
-        console.log('loading',isLoading,'wt',wt,'current',currentTime,'total',totalTime);
+        console.log('loading', isLoading, 'wt', wt, 'current', currentTime, 'total', totalTime);
         if (wt) {
-            player.current?.seek(wt.secondsWatched,0)
+            player.current?.seek(wt?.secondsWatched ?? 0, 0)
             // setCurrentTime(wt.secondsWatched);
             setWT(undefined);
         }
-    },[totalTime]);
+    }, [totalTime]);
     // Grabbing parameters from route
     useEffect(() => {
         if (!route.params) {
@@ -241,7 +194,7 @@ export default function WatchScreen() {
                 fullscreenOrientation="landscape"
                 fullscreen
                 paused={paused}
-                rate={speed}
+                rate={speed._x}
                 className="absolute left-0 right-0 top-0 bottom-0"
                 resizeMode="contain"
                 onSeek={() => {
@@ -320,8 +273,8 @@ export default function WatchScreen() {
                     <View className="flex-grow w-auto">
                         <Slider
                             thumbTintColor={"white"}
-                            minimumTrackTintColor={colors.border}
-                            maximumTrackTintColor={"white"}
+                            minimumTrackTintColor={"white"}
+                            maximumTrackTintColor={colors.border}
                             value={currentTime / totalTime}
                             onSlidingStart={showUI}
                             onSlidingComplete={(v) => {
@@ -332,41 +285,42 @@ export default function WatchScreen() {
                     </View>
                 </View>
             }
-            {/* Playback settings */}
-            {isVisible &&
-                <View className="absolute top-4 right-8 left-auto bottom-auto p-2 flex items-end">
-                    <Pressable onPress={() => setSettingsVisible(!settingsVisible)}>
-                        <Icon name="cog" size={24} color={"white"} />
-                    </Pressable>
+            {
+                isVisible &&
+                <View className="absolute top-4 right-8 left-auto bottom-auto p-2 flex flex-row justify-end w-full">
+                    <Dropdown
+                        style={styles.dd}
+                        containerStyle={styles.ddContainer}
+                        selectedTextStyle={styles.ddText}
+                        placeholderStyle={styles.ddText}
+                        backgroundColor="#0006"
+                        activeColor={colors.border}
+                        data={SPEEDS}
+                        placeholder="Speed"
+                        labelField="x"
+                        valueField="x"
+                        value={speed}
+                        onChange={(s) => setSpeed(s)} />
                     {
-                        settingsVisible &&
-                        <FlatList data={settingsMenu}
-                            className="border"
-                            style={{ backgroundColor: colors.background, borderColor: colors.border }}
-                            contentContainerStyle={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
-                            renderItem={({ item }) => (
-                                <Pressable onPress={() => {
-                                    item.onClick();
-                                    if (item.closing) {
-                                        setSettingsMenu(initialMenu);
-                                        setSettingsVisible(false);
-                                    }
-                                }}
-                                    className="px-2 py-1 flex flex-row items-center">
-                                    {
-                                        item.arrow == "back" &&
-                                        <Icon style={{ paddingRight: 8 }} name="chevron-left" size={18} />
-                                    }
-                                    <Text className="text-lg" style={{ color: colors.text }}>{item.text}</Text>
-                                    {
-                                        item.arrow == "forward" &&
-                                        <Icon style={{ paddingLeft: 8 }} name="chevron-right" size={18} />
-                                    }
-                                </Pressable>
-                            )} />
+                        sources && sources.videos && sources.videos.length > 0 &&
+                        <Dropdown
+                            style={styles.dd}
+                            containerStyle={styles.ddContainer}
+                            selectedTextStyle={styles.ddText}
+                            placeholderStyle={styles.ddText}
+                            backgroundColor="#0006"
+                            activeColor={colors.border}
+                            placeholder="Quality"
+                            data={sources.videos}
+                            labelField='quality'
+                            valueField="streamUrl"
+                            value={source}
+                            onChange={(x) => setSource(x)} />
                     }
                 </View>
             }
+            {/* Playback settings */}
+
             {playlistVisible &&
                 <Pressable style={StyleSheet.absoluteFill}
                     onPress={() => setPlaylistVisible(false)}
@@ -404,3 +358,8 @@ export default function WatchScreen() {
         </View>
     )
 }
+const makeStyles = (colors: any) => StyleSheet.create({
+    dd: { minWidth: '10%', backgroundColor: '#0004', borderWidth: 2, borderColor: '#000a', paddingHorizontal: 4 },
+    ddContainer: { minWidth: '50%', backgroundColor: colors.background },
+    ddText: { color: colors.text }
+})

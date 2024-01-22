@@ -3,6 +3,16 @@ import { WatchTime } from "../storage/watchtime";
 
 export type AsyncState = 'idle' | 'loading' | 'success' | 'fail' | 'notfound';
 
+export class Speed {
+    _x: number;
+    public get x() {
+        return `x${this._x}`;
+    }
+    constructor(x:number) {
+        this._x = x;
+    }
+}
+
 export type NavigationProps = {
     main: { search?: boolean } | undefined;
     sub: { query: string; page?: number } | undefined;

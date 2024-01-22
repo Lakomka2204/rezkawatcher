@@ -130,6 +130,7 @@ export default function MovieScreen2() {
                             {
                                 watchTime &&
                                 <Button style={{backgroundColor:colors.primary}}
+                                className="rounded-t-sm"
                                 onClick={() => goWatchMovie(watchTime)}>
                                     <Text className="text-xl text-center" style={{color:colors.text}}>Continue watching from {getTime(watchTime?.secondsWatched)}</Text>
                                 </Button>
