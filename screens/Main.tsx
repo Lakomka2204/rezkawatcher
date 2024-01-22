@@ -16,7 +16,7 @@ import {NavigationProps} from '../utils/types';
 function Main() {
   const nav = useNavigation<NavigationProp<NavigationProps>>();
   const route = useRoute<RouteProp<NavigationProps>>();
-  const {colors, dark} = useTheme();
+  const {colors} = useTheme();
   useEffect(() => {
     nav.setOptions({
       headerTitleAlign: 'center',
@@ -37,14 +37,14 @@ function Main() {
             touchSoundDisabled
             className="px-3"
             onPress={() => nav.setParams({search: false})}>
-            <Icon name="close" size={24} color={dark ? 'white' : 'black'} />
+            <Icon name="close" size={24} color={colors.text}/>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
             touchSoundDisabled
             className="px-3"
             onPress={() => nav.setParams({search: true})}>
-            <Icon name="search1" size={24} color={dark ? 'white' : 'black'} />
+            <Icon name="search1" size={24} color={colors.text}/>
           </TouchableOpacity>
         );
       },

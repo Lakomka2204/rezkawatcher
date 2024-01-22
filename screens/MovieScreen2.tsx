@@ -3,10 +3,11 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Image, ScrollView, Text, View } from "react-native";
 import { NavigationProps } from "../utils/types";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Episode, Movie, Season, Translation, getHtmlFromURL, getTranslationSeries } from "../logic/movie";
+import { Episode, Movie, Season, Translation, getHtmlFromURL, getTime, getTranslationSeries } from "../logic/movie";
 import Button from "../components/Button";
 import { Dropdown, IDropdownRef } from "react-native-element-dropdown";
 import { addToHistory } from "../storage/history";
+import { WatchTime, getWatchTime } from "../storage/watchtime";
 
 export default function MovieScreen2() {
     const { colors } = useTheme();
@@ -17,11 +18,9 @@ export default function MovieScreen2() {
         nav.goBack();
         return;
     }
-    
+
     // Movie url from route
     const movieLink = route.params.link;
-    // Loading indicator
-    const [isReady, setReady] = useState(false);
     // Retrevied movie
     const [movie, setMovie] = useState<Movie>();
     // Selected translation
@@ -32,6 +31,8 @@ export default function MovieScreen2() {
     const [season, setSeason] = useState<Season | undefined>(route.params.season);
     // Selected episode
     const [episode, setEpisode] = useState<Episode | undefined>(route.params.episode);
+    // Last watch time
+    const [watchTime, setWT] = useState<WatchTime>();
     // Initial movie fetch
     useEffect(() => {
         async function fetchMovie() {
@@ -41,30 +42,30 @@ export default function MovieScreen2() {
             nav.setOptions({ title: retrievedMovie.name ?? "Loading" });
         }
         if (!movie) fetchMovie();
-        async function getEntry() {
-            //todo check time when was stopped
-        }
-        getEntry();
     }, []);
+    // Check time when stopped last time playing when movie loads
+    useEffect(() => {
+        if (!movie) return;
+        const wt = getWatchTime(movie?.id);
+        console.log('got WT',wt);
+        if (!wt) return;
+        setWT(wt);
+    }, [movie]);
     // Get seasons & episodes when changing translators
     useEffect(() => {
         async function getTranslation() {
-            if (route.params?.translation) return;
-            const tr = translation ?? movie?.translators[0];
-            if (tr) {
-                const seasons = await getTranslationSeries(
-                    movie?.id!,
-                    tr,
-                    movie?.favs
-                );
-                setSeasons(seasons);
-                // Clear previous selected season if existed
-
-            }
+            if (!movie || !translation) return;
+            const seasons = await getTranslationSeries(
+                movie.id,
+                translation,
+                movie?.favs
+            );
+            setSeasons(seasons);
+            setSeason(route.params?.season);
         }
         getTranslation();
-    }, [translation]);
-    function goWatchMovie() {
+    }, [translation, movie]);
+    function goWatchMovie(wt?:WatchTime) {
         if (!translation)
             return Alert.alert("No translation", "Please select translation");
         if (seasons.length > 0 && !season)
@@ -86,7 +87,8 @@ export default function MovieScreen2() {
             nav.push("watch", {
                 movie,
                 translation,
-                season, episode
+                season, episode,
+                watchTime:wt
             });
         }
     }
@@ -123,17 +125,29 @@ export default function MovieScreen2() {
                             {movie.description}
                         </Text>
                     </ScrollView>
-                    <View className="flex-grow-0">
+                    <View className="flex-grow-0 border-x-2 border-t-2 rounded-t-md" style={{ borderColor: colors.text }}>
                         <View className="flex flex-col">
+                            {
+                                watchTime &&
+                                <Button style={{backgroundColor:colors.primary}}
+                                onClick={() => goWatchMovie(watchTime)}>
+                                    <Text className="text-xl text-center" style={{color:colors.text}}>Continue watching from {getTime(watchTime?.secondsWatched)}</Text>
+                                </Button>
+                            }
                             {/* Dropdown for translations */}
                             {/* // todo make buttons instead of dropdowns and make dd's hidden, buttons text make current selection */}
                             <Dropdown
+
                                 data={movie.translators}
                                 style={{
-                                    backgroundColor: colors.background,
-                                    flexGrow: 1
+                                    backgroundColor: colors.border,
+                                    flexGrow: 1,
+                                    margin: 1
                                 }}
+                                value={translation}
                                 placeholder="Translation"
+                                selectedTextStyle={{ color: colors.text }}
+                                placeholderStyle={{ color: colors.text }}
                                 containerStyle={{ backgroundColor: colors.background }}
                                 backgroundColor="#0006"
                                 activeColor={colors.border}
@@ -148,14 +162,16 @@ export default function MovieScreen2() {
                                 <Dropdown
                                     data={seasons}
                                     style={{
-                                        backgroundColor: colors.background,
-                                        flexGrow: 1
+                                        backgroundColor: colors.border,
+                                        flexGrow: 1,
+                                        margin: 1
                                     }}
-                                    containerStyle={{
-                                        backgroundColor: colors.background
-                                    }}
+                                    containerStyle={{ backgroundColor: colors.background }}
+                                    selectedTextStyle={{ color: colors.text }}
+                                    placeholderStyle={{ color: colors.text }}
                                     activeColor={colors.border}
                                     backgroundColor="#0006"
+                                    value={season}
                                     placeholder="Season"
                                     labelField="name"
                                     valueField="id"
@@ -169,14 +185,16 @@ export default function MovieScreen2() {
                                 <Dropdown
                                     data={season.episodes}
                                     style={{
-                                        backgroundColor: colors.background,
-                                        flexGrow: 1
+                                        backgroundColor: colors.border,
+                                        flexGrow: 1,
+                                        margin: 1
                                     }}
-                                    containerStyle={{
-                                        backgroundColor: colors.background
-                                    }}
+                                    containerStyle={{ backgroundColor: colors.background }}
                                     activeColor={colors.border}
+                                    selectedTextStyle={{ color: colors.text }}
+                                    placeholderStyle={{ color: colors.text }}
                                     backgroundColor="#0006"
+                                    value={episode}
                                     placeholder="Episode"
                                     labelField="name"
                                     valueField="id"

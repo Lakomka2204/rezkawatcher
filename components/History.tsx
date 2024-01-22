@@ -1,4 +1,4 @@
-import { useTheme } from '@react-navigation/native';
+import { useIsFocused, useTheme } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { FlatList, ScrollView, Text, View } from 'react-native';
 import { HistoryMovie } from '../logic/movie';
@@ -7,10 +7,11 @@ import MovieHistory from './MovieHistory';
 
 function History() {
     const colors = useTheme().colors;
+    const focused = useIsFocused()
     const [history, setHistory] = useState<HistoryMovie[]>([]);
     useEffect(() => {
         setHistory(getAllMovies())
-    }, []);
+    }, [focused]);
     return (
         <View className='h-full flex flex-col p-3'>
             <Text

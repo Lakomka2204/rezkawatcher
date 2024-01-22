@@ -1,4 +1,5 @@
 import { Episode, Movie, Season, Translation } from "../logic/movie";
+import { WatchTime } from "../storage/watchtime";
 
 export type AsyncState = 'idle' | 'loading' | 'success' | 'fail' | 'notfound';
 
@@ -12,6 +13,7 @@ export type NavigationProps = {
         translation: Translation;
         season?: Season;
         episode?: Episode;
+        watchTime?: WatchTime
     }
     | undefined;
     mov2: { 

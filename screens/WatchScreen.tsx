@@ -8,6 +8,7 @@ import Icon from "react-native-vector-icons/FontAwesome5";
 import Button from "../components/Button";
 import Slider from "@react-native-community/slider";
 import Playlist from "../components/Playlist";
+import { WatchTime, saveWatchTime } from "../storage/watchtime";
 let hasSeries = false;
 interface MenuItem {
     text: string;
@@ -51,7 +52,7 @@ export default function WatchScreen() {
     // UI playlist visible
     const [playlistVisible, setPlaylistVisible] = useState(false);
     // Video loading
-    const [isLoading, setLoading] = useState(false);
+    const [isLoading, setLoading] = useState(true);
     // Video has ended
     const [isEnd, setEnd] = useState(false);
     // Video speed
@@ -74,6 +75,8 @@ export default function WatchScreen() {
     const [quality, setQuality] = useState<VideoQuality>('360p');
     // Settings menu visibile
     const [settingsVisible, setSettingsVisible] = useState(false);
+    // Watch time
+    const [wt, setWT] = useState<WatchTime | undefined>(route.params?.watchTime);
     // Back button
     const backButton: MenuItem = {
         text: "Back",
@@ -127,11 +130,23 @@ export default function WatchScreen() {
     // Reset playtime when changing between series
     useEffect(() => {
         setCurrentTime(0);
-        player.current?.seek(0,0);
+        player.current?.seek(0, 0);
     }, [season, episode])
+    // Revert menu when settings get closed
     useEffect(() => {
         setSettingsMenu(initialMenu);
     }, [settingsVisible]);
+    // save playback to storage every X seconds
+    // todo replace X seconds with saved settings value
+    useEffect(() => {
+        if (currentTime == 0) return;
+        if (!movie) return;
+        //! every 5 seconds save playback 
+        if (currentTime % 5 > 4.6) {
+            console.log('saving playback', currentTime, quality);
+            saveWatchTime(movie.id, { secondsWatched: currentTime, videoQuality: quality });
+        }
+    }, [currentTime]);
     function hideUI() {
         setSettingsVisible(false);
         setTimer(
@@ -147,6 +162,15 @@ export default function WatchScreen() {
     function toggleUI() {
         setVisible(!isVisible);
     }
+    useEffect(() => {
+        if (totalTime == 0) return;
+        console.log('loading',isLoading,'wt',wt,'current',currentTime,'total',totalTime);
+        if (wt) {
+            player.current?.seek(wt.secondsWatched,0)
+            // setCurrentTime(wt.secondsWatched);
+            setWT(undefined);
+        }
+    },[totalTime]);
     // Grabbing parameters from route
     useEffect(() => {
         if (!route.params) {
@@ -157,6 +181,8 @@ export default function WatchScreen() {
         const pSeason = route.params.season;
         const pEpisode = route.params.episode;
         const pTranslation = route.params.translation;
+        if (wt)
+            setQuality(wt.videoQuality)
         console.log('grabbed info', pMovie.name, pSeason?.name, pEpisode?.name, pTranslation.id);
         if (!movie)
             setMovie(pMovie);
@@ -331,7 +357,7 @@ export default function WatchScreen() {
                                         item.arrow == "back" &&
                                         <Icon style={{ paddingRight: 8 }} name="chevron-left" size={18} />
                                     }
-                                    <Text className="text-lg" style={{color:colors.text}}>{item.text}</Text>
+                                    <Text className="text-lg" style={{ color: colors.text }}>{item.text}</Text>
                                     {
                                         item.arrow == "forward" &&
                                         <Icon style={{ paddingLeft: 8 }} name="chevron-right" size={18} />

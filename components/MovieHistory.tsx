@@ -8,7 +8,7 @@ import Button from "./Button";
 
 const MovieHistory: React.FC<{ movie: HistoryMovie }> = ({ movie }) => {
     const nav = useNavigation<NativeStackNavigationProp<NavigationProps>>();
-    const { colors } = useTheme();
+    const { colors,dark } = useTheme();
     function goWatchMovie() {
         nav.push('mov2',{
             link:movie.url,
@@ -29,10 +29,10 @@ const MovieHistory: React.FC<{ movie: HistoryMovie }> = ({ movie }) => {
                 <Text
                     style={{ color: colors.text }}
                     className="text-2xl w-auto">{movie.name}</Text>
-                <Text>{movie.watchedTranslation.name}</Text>
+                <Text style={{color: colors.text}}>{movie.watchedTranslation.name}</Text>
                 {
                     movie.watchedSeason && movie.watchedEpisode &&
-                    <Text>{movie.watchedSeason.name} {movie.watchedEpisode.name}</Text>
+                    <Text style={{color: colors.text}}>{movie.watchedSeason.name} {movie.watchedEpisode.name}</Text>
                 }
             </View>
         </Button>
