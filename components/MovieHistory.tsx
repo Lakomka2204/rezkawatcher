@@ -28,15 +28,11 @@ const MovieHistory: React.FC<{ movie: HistoryMovie }> = ({ movie }) => {
             <View className="flex flex-col m-1 ml-3">
                 <Text
                     style={{ color: colors.text }}
-                    className="text-2xl">{movie.name}</Text>
+                    className="text-2xl w-auto">{movie.name}</Text>
                 <Text>{movie.watchedTranslation.name}</Text>
                 {
-                    movie.watchedSeason &&
-                    <Text>{movie.watchedSeason.name}</Text>
-                }
-                {
-                    movie.watchedEpisode &&
-                    <Text>{movie.watchedEpisode.name}</Text>
+                    movie.watchedSeason && movie.watchedEpisode &&
+                    <Text>{movie.watchedSeason.name} {movie.watchedEpisode.name}</Text>
                 }
             </View>
         </Button>

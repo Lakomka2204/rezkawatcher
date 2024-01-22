@@ -52,9 +52,7 @@ function Main() {
   }, [route]);
 
   return (
-    <View className={'flex-1 items-stretch p-3 self-stretch'}>
       <History />
-    </View>
   );
 }
 
