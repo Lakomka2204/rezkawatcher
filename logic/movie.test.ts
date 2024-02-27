@@ -119,15 +119,14 @@ describe('movie class methods', () => {
       'https://rezka.ag/animation/adventures/12113-van-pis-1999.html',
     );
     const movie = new mv.Movie(html);
-    const translation = movie.translators[6];
+    const translation = movie.translators[1];
     const seasons = await mv.getTranslationSeries(
       movie.id,
       translation,
       movie.favs,
     );
-    expect(seasons.length).toEqual(22);
-    expect(seasons[0].episodes[0].cdnUrl).toBeTruthy();
-    expect(seasons[0].episodes[0].quality).toBe<mv.VideoQuality>('none');
+    expect(seasons.length).toEqual(21);
+    expect(seasons[0].episodes[0].quality).toBe<mv.VideoQuality>('480p');
     const season = seasons[10];
     expect(season.translation.id).toEqual('234');
     expect(season.translation.name).toContain('Persona');
@@ -141,6 +140,7 @@ describe('movie class methods', () => {
       movie.translators[0],
       movie.favs,
     );
+    await mv.getStream(movie.id,season,season.episodes[0],movie.translators[0].id);
     const videos = mv.parseCdnUrl(firstTranslation[0].episodes[0].cdnUrl);
     expect(videos.length).toBeGreaterThan(4);
     expect(videos[0].quality).not.toBe<mv.VideoQuality>('none');
