@@ -11,153 +11,144 @@ export type VideoQuality =
   | '1080p'
   | '1080p Ultra';
 
-export class Instance {
+export interface Instance {
   id: string;
   name: string;
-  constructor(id: string = 'Instance ID', name: string = 'Instance Name') {
-    this.id = id;
-    this.name = name;
-  }
-}
-export class Translation extends Instance {
-  is_director?: string;
-  is_ads?: string;
-  is_camrip?: string;
-  constructor(
-    id: string = 'Translation ID',
-    name: string = 'Translation Name',
-  ) {
-    super(id, name);
-  }
-}
-export type Rating = {
-  score: number;
-  name: string;
-};
-export interface VideoProps {
-  quality: VideoQuality;
-  streamUrl: string;
-  downloadUrl: string;
-}
-export interface Subtitles {
-  language: string;
-  displayLanguage?: string;
-  url: string;
-}
-export interface VideoInfo {
-  videos: VideoProps[];
-  subtitles: Subtitles[];
-  defaultSubtitle?: string;
-}
-export class Episode extends Instance {
-  cdnUrl: string;
-  quality: VideoQuality;
-  constructor(cdnUrl: string, quality: VideoQuality) {
-    super();
-    this.name = 'Episode';
-    this.cdnUrl = cdnUrl;
-    this.quality = quality;
-  }
-}
-export class Season extends Instance {
-  translation: Translation;
-  episodes: Episode[];
-  constructor(episodes: Episode[], translation: Translation) {
-    super();
-    this.name = 'Season';
-    this.episodes = episodes;
-    this.translation = translation;
-  }
 }
 
-export class QuickMovie extends Instance {
-  url: string;
-  enabled: boolean;
-  constructor(url: string, enabled: boolean) {
-    super();
-    this.url = url;
-    this.enabled = enabled;
-  }
-}
-export class PreviewMovie extends QuickMovie {
-  thumbnail: string;
-  type: MovieType;
+export class Translation implements Instance {
   constructor(
-    url: string,
-    enabled: boolean,
-    thumbnail: string,
-    type: MovieType,
-  ) {
-    super(url, enabled);
-    this.thumbnail = thumbnail;
-    this.type = type;
-  }
+    public id: string,
+    public name: string,
+    public is_director?: string,
+    public is_ads?: string,
+    public is_camrip?: string,
+    public seasons?: Season[],
+  ) {}
 }
+
+export interface VideoProps {
+  quality: VideoQuality;
+  ukrtelCdn: string;
+  voidboostCdn: string;
+}
+
+export class Episode implements Instance {
+  constructor(
+    public id: string,
+    public name: string,
+    public cdnUrl?: string,
+    public quality?: VideoQuality,
+  ) {}
+}
+
+export class Season implements Instance {
+  constructor(
+    public id: string,
+    public name: string,
+    public episodes: Episode[],
+    public translation: Translation,
+  ) {}
+}
+
+export class QuickMovie implements Instance {
+  constructor(
+    public id: string,
+    public name: string,
+    public url: string,
+    public enabled: boolean,
+  ) {}
+}
+
+export class PreviewMovie implements QuickMovie {
+  constructor(
+    public id: string,
+    public name: string,
+    public url: string,
+    public enabled: boolean,
+    public thumbnail: string,
+    public type: MovieType,
+  ) {}
+}
+
 export class HistoryMovie extends PreviewMovie {
-    whenWatched: number;
-    watchedTranslation: Translation;
-    watchedSeason?: Season;
-    watchedEpisode?: Episode;
-    constructor(
-        url: string,
-        enabled:boolean,
-        thumbnail: string,
-        type: MovieType,
-        watchedTranslation: Translation,
-        whenWatched: number,
-        watchedSeason?: Season,
-        watchedEpisode?: Episode
-    ) {
-        super(url,enabled,thumbnail,type);
-        this.whenWatched = whenWatched;
-        this.watchedTranslation = watchedTranslation;
-        this.watchedSeason = watchedSeason;
-        this.watchedEpisode = watchedEpisode;
-    }
+  constructor(
+    public id: string,
+    public name: string,
+    public url: string,
+    public thumbnail: string,
+    public type: MovieType,
+    public watchedTranslation: Translation,
+    public whenWatched: number,
+    public watchedSeconds: number,
+    public watchedSeason?: Season,
+    public watchedEpisode?: Episode,
+  ) {
+    super(id, name, url, true, thumbnail, type);
+  }
 }
 
 export class Movie extends PreviewMovie {
-  originalName: string;
-  description: string;
-  releaseDate?: string;
-  translators: Translation[];
-  favs?: string;
-  constructor(html: string) {
-    super('', true, '', 'none');
+  private get getCdnSeries(): URL {
+    return new URL('ajax/get_cdn_series/', `https://${this.host}`);
+  }
+
+  public translators: Translation[] = [];
+
+  private constructor(
+    public id: string,
+    public name: string,
+    public url: string,
+    public thumbnail: string,
+    public type: MovieType,
+    public originalName: string,
+    public description: string,
+    public host: string,
+    public favs?: string,
+  ) {
+    super(id, name, url, true, thumbnail, type);
+  }
+
+  static async get(url: string): Promise<Movie> {
+    const res = await axios.get(url);
+    const html = res.data;
+    if (!valid(html)) throw new Error('get() invalid HTML');
     const dom = parse(html);
-    this.url = getDOMMetaparam(dom, 'url');
-    this.type = getPathname(this.url);
-    this.thumbnail = getDOMMetaparam(dom, 'image');
-    this.id = dom.getElementById('post_id')?.getAttribute('value')!;
-    this.name = getDOMMetaparam(dom, 'title');
-    this.description = dom.querySelector(
-      '.b-post__description_text',
-    )?.textContent!;
-    this.favs = dom.getElementById('ctrl_favs')?.getAttribute('value');
-    this.originalName = dom.querySelector(
+    const id = dom.getElementById('post_id')!.getAttribute('value')!;
+    const name = Movie.getDOMMetaparam(dom, 'title');
+    const desc = dom.querySelector('.b-post__description_text')!.textContent!;
+    const type = Movie.getPathname(url);
+    const thumbnailUrl = Movie.getDOMMetaparam(dom, 'image');
+    const favs = dom.getElementById('ctrl_favs')!.getAttribute('value')!;
+    const originalName = dom.querySelector(
       'div[itemprop="alternativeHeadline"]',
-    )?.textContent!;
-    const translators = dom.getElementById('translators-list')!;
-    if (translators) {
-      const list = translators.querySelectorAll('li');
-      const retList: Translation[] = [];
-      list.forEach(x => {
-        retList.push({
+    )!.textContent!;
+    const translatorList = dom.getElementById('translators-list');
+    const movie = new Movie(
+      id,
+      name,
+      url,
+      thumbnailUrl,
+      type,
+      originalName,
+      desc,
+      new URL(url).host,
+      favs,
+    );
+    if (translatorList) {
+      movie.translators.push(
+        ...translatorList.getElementsByTagName('li').map<Translation>(x => ({
           id: x.getAttribute('data-translator_id')!,
           name: x.textContent!.trim(),
           is_ads: x.getAttribute('data-ads'),
           is_camrip: x.getAttribute('data-camrip'),
           is_director: x.getAttribute('data-director'),
-        });
-      });
-      this.translators = retList;
+        })),
+      );
     } else {
-      this.translators = [];
-      let translationId: string = '0';
+      let translationId = '0';
       const translationRegex = /(?:sof\.tv\.\w+)(?:\(\d+, (\d+))/;
-      const scripts = dom.querySelectorAll(
-        'script',
-      ) as unknown as HTMLElement[];
+      const scripts = dom.getElementsByTagName('script');
       for (const script of scripts) {
         const scrText = script.textContent?.match(translationRegex);
         if (scrText) {
@@ -170,299 +161,253 @@ export class Movie extends PreviewMovie {
         const prop = elements[i].textContent;
         if (!prop.includes('В переводе')) continue;
         const translationName = elements[i + 1].textContent!;
-        this.translators.push({id: translationId, name: translationName});
+        movie.translators.push({id: translationId, name: translationName});
       }
-      if (this.translators.length == 0)
-        this.translators.push({id: translationId, name: 'Default'});
+      if (movie.translators.length == 0)
+        movie.translators.push({id: translationId, name: 'Default'});
     }
+    return movie;
   }
-}
-function getPathname(url: string): MovieType {
-  if (!url) return 'none';
-  const match = url.match(/\/\w+\.\w+\/(.+)\/(?:.+)\//);
-  if (match) {
-    return match[1] as MovieType;
-  }
-  return 'none';
-}
-function getDOMMetaparam(el: HTMLElement, og: string): string {
-  return el
-    .querySelector(`meta[property="og:${og}"]`)
-    ?.getAttribute('content')!;
-}
 
-export function createParams(
-  params: string | string[][] | Record<string, string>,
-): string {
-  return new URLSearchParams(params).toString();
-}
-
-export async function quickSearch(query: string): Promise<QuickMovie[]> {
-  try {
-    const res = await axios.post('https://rezka.ag/engine/ajax/search.php', {
-      q: query,
-    });
-    const dom = parse(res.data);
-    const items: QuickMovie[] = [];
-    dom.querySelectorAll('a').forEach(x => {
-      if (x.classList.length > 0) return;
-      items.push({
-        url: x.getAttribute('href')!,
-        name: x.textContent!,
+  public static async quickSearch(
+    host: string,
+    query: string,
+  ): Promise<QuickMovie[]> {
+    try {
+      const url = new URL('/engine/ajax/search.php', `https://${host}`);
+      const res = await axios.post(url.toString(), {q: query});
+      const dom = parse(res.data);
+      const qmovies = dom.querySelectorAll('li > a').map<QuickMovie>(x => ({
         enabled: true,
-        id: 'QuickSearch ID',
+        id: 'Quick search ID',
+        name: x.textContent!,
+        url: x.getAttribute('href')!,
+      }));
+      return qmovies;
+    } catch (err) {
+      console.error('Quick seach error:', err);
+      return [];
+    }
+  }
+
+  public static async search(
+    host: string,
+    query: string,
+    page: number,
+  ): Promise<PreviewMovie[]> {
+    const url = new URL('search/', `https://${host}`);
+    url.searchParams.append('do', 'search');
+    url.searchParams.append('subaction', 'search');
+    url.searchParams.append('q', query);
+    url.searchParams.append('page', page.toString());
+    const res = await axios.get(url.toString());
+    const dom = parse(res.data);
+    return dom
+      .querySelectorAll('.b-content__inline_item')
+      .map<PreviewMovie | null>(movieEl => {
+        const cover = movieEl.querySelector('div.b-content__inline_item-cover');
+        if (!cover) {
+          console.warn("skip search no 'cover'", {host, query, page});
+          return null;
+        }
+        const img = cover.querySelector('a > img');
+        if (!img) {
+          console.warn("skip search no 'img'", {host, query, page});
+          return null;
+        }
+        return {
+          enabled: true,
+          id: movieEl.getAttribute('data-id')!,
+          url: cover.querySelector('a')!.getAttribute('href')!,
+          thumbnail: img.getAttribute('src')!,
+          name: img.getAttribute('alt')!,
+          type: cover.querySelector('span')!.classList.value[1] as MovieType,
+        };
+      })
+      .filter(x => x !== null) as PreviewMovie[];
+  }
+
+  public async getTranslationSeries(translationId: string): Promise<boolean> {
+    const translation = this.translators.find(x => x.id == translationId);
+    if (!translation) {
+      console.warn(
+        'No translation with id ',
+        translationId,
+        'existing',
+        this.translators,
+      );
+      return false;
+    }
+    const translationIndex = this.translators.indexOf(translation);
+    const reqArgs: Record<string, string> = {
+      id: this.id,
+      translator_id: translation.id,
+      action: 'get_episodes',
+    };
+    if (this.favs) reqArgs['favs'] = this.favs;
+    if (translation.is_ads) reqArgs['is_ads'] = translation.is_ads;
+    if (translation.is_camrip) reqArgs['is_camrip'] = translation.is_camrip;
+    if (translation.is_director)
+      reqArgs['is_director'] = translation.is_director;
+    const res = await axios.post(this.getCdnSeries.toString(), reqArgs, {
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    });
+    if (!res.data.success) {
+      console.warn(
+        'getTranslationSeries could not retrieve series',
+        translation,
+        'RES',
+        res.data,
+      );
+      return false;
+    }
+    const seasonsDOM = parse(res.data.seasons);
+    const seasonPreviews = seasonsDOM
+      .getElementsByTagName('li')
+      .map<Instance>(x => ({
+        id: x.getAttribute('data-tab_id')!,
+        name: x.textContent,
+      }));
+    const dom = parse(res.data.episodes);
+    translation.seasons = dom
+      .getElementsByTagName('ul')
+      .map<Season>((el, index) => {
+        return {
+          ...seasonPreviews[index],
+          episodes: el.getElementsByTagName('li').map<Episode>(epEl => {
+            return {
+              id: epEl.getAttribute('data-episode_id')!,
+              name: epEl.textContent!,
+            };
+          }),
+          translation,
+        };
       });
+    this.translators[translationIndex] = translation;
+    return true;
+  }
+
+  public async getMovieStreams(translationId: string): Promise<VideoProps[]> {
+    const translation = this.translators.find(x => x.id == translationId);
+    const res = await axios.post(this.getCdnSeries.toString(), {
+      id: this.id,
+      translator_id: translation?.id ?? translationId,
+      favs: this.favs,
+      is_ads: translation?.is_ads ?? '0',
+      is_director: translation?.is_director ?? '0',
+      is_camrip: translation?.is_camrip ?? '0',
+      action: 'get_movie',
     });
-    console.log('qS', items.length);
-    if (items.length) return items;
-    else return [];
-  } catch {
-    return [];
-  }
-}
-
-export async function search(
-  query: string,
-  page: number,
-): Promise<PreviewMovie[]> {
-  console.log('query: %s p: ', query, page);
-  const res = await axios.get(
-    `https://rezka.ag/search/?do=search&subaction=search&q=${query}&page=${page}`,
-  );
-  const dom = parse(res.data);
-  const htmlFilms = dom.querySelectorAll('.b-content__inline_item');
-  console.log('res: %d', htmlFilms.length);
-  if (htmlFilms.length === 0) return [];
-  const films: PreviewMovie[] = [];
-  htmlFilms.forEach(x => {
-    const cover = x.querySelector('div.b-content__inline_item-cover');
-    const link = cover?.querySelector('a')?.getAttribute('href');
-    const img = cover?.querySelector('a > img');
-    const imgUrl = img?.getAttribute('src');
-    const name = img?.getAttribute('alt');
-    const type = cover?.querySelector('span')?.classList.value[1];
-    films.push({
-      enabled: true,
-      id: x.getAttribute('data-id')!,
-      name: name!,
-      thumbnail: imgUrl!,
-      type: type as MovieType,
-      url: link!,
-    });
-  });
-  return films;
-}
-
-export async function getHtmlFromURL(url: string): Promise<string> {
-  const res = await axios.get(url);
-  return valid(res.data) ? res.data : '';
-}
-
-export async function getTranslationSeries(
-  id: string,
-  translation: Translation,
-  favs?: string,
-): Promise<Season[]> {
-  const reqArgs = {
-    id,
-    translator_id: translation.id,
-    action: 'get_episodes',
-  };
-  if (favs)
-    //@ts-ignore
-    reqArgs['favs'] = favs;
-  if (translation.is_ads)
-    //@ts-ignore
-    reqArgs['is_ads'] = translation.is_ads;
-  if (translation.is_camrip)
-    //@ts-ignore
-    reqArgs['is_camrip'] = translation.is_camrip;
-  if (translation.is_director)
-    //@ts-ignore
-    reqArgs['is_director'] = translation.is_director;
-  const res = await axios.post(
-    'https://rezka.ag/ajax/get_cdn_series/',
-    reqArgs,
-    {headers: {'Content-Type': 'application/x-www-form-urlencoded'}},
-  );
-  if (!res.data.success) {
-    return [];
-  }
-
-  const seasonsDOM = parse(res.data.seasons);
-  const seasonNodes = seasonsDOM.querySelectorAll('li');
-  const seasons: any[] = [];
-  seasonNodes.forEach(x =>
-    seasons.push({
-      id: x.getAttribute('data-tab_id'),
-      name: x.textContent,
-    }),
-  );
-
-  const episodesDOM = parse(res.data.episodes);
-  const episodeNodes = episodesDOM.querySelectorAll('li');
-  const episodes: any[] = [];
-  episodeNodes.forEach(x =>
-    episodes.push({
-      id: x.getAttribute('data-episode_id'),
-      season: x.getAttribute('data-season_id'),
-      movie: x.getAttribute('data-id'),
-      name: x.textContent,
-      quality: (x.getAttribute('data-cdn_quality') == 'null'
-        ? 'none'
-        : x.getAttribute('data-cdn_quality')) as VideoQuality,
-      cdn:
-        x.getAttribute('data-cdn_url') == 'null'
-          ? 'none'
-          : x.getAttribute('data-cdn_url'),
-    }),
-  );
-  const returnList: Season[] = [];
-  for (const season of seasons) {
-    const seasonEpisodes = episodes.filter(x => x.season === season.id);
-    returnList.push({
-      id: season.id!,
-      name: season.name,
-      episodes: seasonEpisodes.map(x => ({
-        id: x.id!,
-        name: x.name!,
-        cdnUrl: x.cdn!,
-        quality: x.quality! as VideoQuality,
-      })),
-      translation: translation,
-    });
-  }
-  return returnList;
-}
-
-export async function getMovie(
-  id: string,
-  favs?: string,
-  translation?: Translation,
-): Promise<VideoInfo> {
-  const res = await axios.post('https://rezka.ag/ajax/get_cdn_series/', {
-    id,
-    translator_id: translation?.id,
-    favs,
-    is_ads: translation?.is_ads ?? '0',
-    is_director: translation?.is_director ?? '0',
-    is_camrip: translation?.is_camrip ?? '0',
-    action: 'get_movie',
-  });
-  if (!res.data.success) {
-    console.error('Could not retrieve movie:', res.data.message);
-    return {videos: [], subtitles: [], defaultSubtitle: res.data.subtitle_def};
-  }
-  const subs: Subtitles[] = [];
-  if (res.data.subtitle) {
-    subs.push(...parseSubtitlesUrl(res.data.subtitle, res.data.subtitle_lns));
-  }
-  return {videos: parseCdnUrl(res.data.url), subtitles: subs};
-}
-
-export async function getStream(
-  id: string,
-  season?: Season | string,
-  episode?: Episode | string,
-  translationId?: string,
-): Promise<VideoInfo> {
-  const res = await axios.post('https://rezka.ag/ajax/get_cdn_series/', {
-    id,
-    translator_id: translationId,
-    season: season instanceof Season ? season.id : season,
-    episode: episode instanceof Episode ? episode.id : episode,
-    action: 'get_stream',
-  });
-
-  if (!res.data.success) {
-    console.error('Could not retrieve stream:', res.data.message);
-    return {videos: [], subtitles: []};
-  }
-  const props = parseCdnUrl(res.data.url);
-  const subs: Subtitles[] = [];
-  if (res.data.subtitle) {
-    subs.push(...parseSubtitlesUrl(res.data.subtitle, res.data.subtitle_lns));
-  }
-  return {
-    videos: props,
-    subtitles: subs,
-    defaultSubtitle: res.data.subtitle_def,
-  };
-}
-export async function testRemoteFile(url: string): Promise<boolean> {
-  try {
-    const res = await axios.head(url);
-    return res.status == 200;
-  } catch (err) {
-    console.error(err);
-    return false;
-  }
-}
-export function parseSubtitlesUrl(subs: string, subLnc: object): Subtitles[] {
-  const sub = subs.split(',');
-  const finArr: Subtitles[] = [];
-  for (let subUrl of sub) {
-    const r = /\[(.*)\](.*)/.exec(subUrl);
-    if (r?.[0] == null) continue;
-    const displayLang = r[1];
-    const url = r[2];
-    // @ts-ignore
-    const langCode = subLnc[r[1]];
-    finArr.push({language: langCode, url, displayLanguage: displayLang});
-  }
-  return finArr;
-}
-export function parseCdnUrl(cdn: string): VideoProps[] {
-  const decodedUrls = clearTrash(cdn);
-  const decodedArr = decodedUrls.split(',');
-  const finArr: VideoProps[] = [];
-  for (let url of decodedArr) {
-    const r = /\[(.*)\](.*):hls:(?:.*)or (.*)/.exec(url);
-    if (r?.[0] == null) continue;
-
-    finArr.push({
-      quality: r[1] as VideoQuality,
-      streamUrl: r[2],
-      downloadUrl: r[3],
-    });
-  }
-  return finArr;
-}
-export function clearTrash(encoded: string): string {
-  const trash = ['@', '#', '!', '^', '$'];
-  const trashCodes = [];
-  for (let i = 2; i < 4; i++) {
-    for (let chars of generateCombinations(trash, i)) {
-      trashCodes.push(chars.join(''));
+    if (!res.data.success) {
+      console.warn(
+        'getMovie could not retrieve movie',
+        translation,
+        'RES',
+        res.data,
+      );
+      return [];
     }
+    return Movie.parseCdnUrl(res.data.url);
   }
-  const arr = encoded.replaceAll('#h', '').split('//_//');
-  let trashStr = arr.join('');
-  for (let code of trashCodes) {
-    const base = Buffer.from(code, 'ascii').toString('base64');
-    trashStr = trashStr.replaceAll(base, '');
-  }
-  const fstr = Buffer.from(trashStr + '==', 'base64').toString('ascii');
-  return fstr;
-}
 
-export function generateCombinations<T>(elements: T[], length: number): T[][] {
-  if (length === 1) return elements.map(element => [element]);
-
-  const result: T[][] = [];
-  const rest = generateCombinations(elements, length - 1);
-  for (const element of elements) {
-    for (const combination of rest) {
-      result.push([element, ...combination]);
+  public async getEpisodeStreams(
+    season: string,
+    episode: string,
+    translationId: string,
+  ): Promise<VideoProps[]> {
+    const reqArgs = new URLSearchParams({
+      id: this.id,
+      translator_id: translationId,
+      season,
+      episode,
+      action: 'get_stream',
+    });
+    console.log('REQUEST OBJECT',reqArgs.toString());
+    if (this.favs) reqArgs.append('favs', this.favs);
+    const url = new URL(this.getCdnSeries.toString());
+    url.searchParams.append('t', Date.now().toString());
+    const res = await axios.post(url.toString(), reqArgs.toString(), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      },
+      withCredentials: true,
+    });
+    if (!res.data.success) {
+      console.warn(
+        'getEpisodeStream could not retrieve stream',
+        {season, episode, translationId},
+        'REQ',
+        res.data,
+      );
+      return [];
     }
+    return Movie.parseCdnUrl(res.data.url);
   }
 
-  return result;
-}
+  private static parseCdnUrl(cdn: string): VideoProps[] {
+    console.log('input CDN',cdn);
+    const decodedUrls = Movie.clearTrash(cdn);
+    const decodedArr = decodedUrls.split(',');
+    const finArr: VideoProps[] = [];
+    for (let url of decodedArr) {
+      const r = /\[(.*)\](.*) or (.*)/.exec(url);
+      if (r?.[0] == null) continue;
+      // todo понять почему в питоне есть укртелсдн а тут нету!
+      // todo дело в запросах, на запрос с браузера я получаю укр нет, а на аксиос два стримбуста, мейби нужно что-то обновить
+      finArr.push({
+        quality: r[1] as VideoQuality,
+        ukrtelCdn: r[2],
+        voidboostCdn: r[3],
+      });
+    }
+    return finArr;
+  }
 
-export function getTime(seconds: number): string {
-  var date = new Date(0);
-  date.setSeconds(seconds);
-  var timeString = date.toTimeString().split(' ')[0];
-  return timeString;
+  public static clearTrash(encoded: string): string {
+    const trash = ['@', '#', '!', '^', '$'];
+    const trashCodes = [];
+    for (let i = 2; i < 4; i++) {
+      for (let chars of Movie.generateCombinations(trash, i)) {
+        trashCodes.push(chars.join(''));
+      }
+    }
+    const arr = encoded.replaceAll('#h', '').split('//_//');
+    let trashStr = arr.join('');
+    for (let code of trashCodes) {
+      const base = Buffer.from(code, 'ascii').toString('base64');
+      trashStr = trashStr.replaceAll(base, '');
+    }
+    const fstr = Buffer.from(trashStr + '==', 'base64').toString('ascii');
+    return fstr;
+  }
+
+  private static generateCombinations(
+    elements: string[],
+    length: number,
+  ): string[][] {
+    if (length === 1) return elements.map(element => [element]);
+    const result: string[][] = [];
+    const rest = Movie.generateCombinations(elements, length - 1);
+    for (const element of elements) {
+      for (const combination of rest) {
+        result.push([element, ...combination]);
+      }
+    }
+    return result;
+  }
+
+  private static getDOMMetaparam(el: HTMLElement, og: string): string {
+    return el
+      .querySelector(`meta[property="og:${og}"]`)
+      ?.getAttribute('content')!;
+  }
+
+  private static getPathname(url: string): MovieType {
+    if (!url) return 'none';
+    const match = url.match(/\/\w+\.\w+\/(.+)\/(?:.+)\//);
+    if (match) {
+      return match[1] as MovieType;
+    }
+    return 'none';
+  }
 }

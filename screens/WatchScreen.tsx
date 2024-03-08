@@ -216,7 +216,7 @@ export default function WatchScreen() {
                     setVisible(true);
                 }}
                 source={{
-                    uri: source?.streamUrl ||
+                    uri: source?.ukrtelCdn ||
                         'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
                 }}
             />

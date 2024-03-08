@@ -1,16 +1,19 @@
 import axios from 'axios';
-import {check, init} from './init';
-import * as mv from './movie';
+import { init} from './init';
+import {Movie, MovieType} from './movie';
+import { log} from 'console';
 init();
+const host = 'rezka.ag';
 describe('axios initialization', () => {
   it('should initialize', () => {
     init();
-    expect(check()).toBeTruthy();
+    expect(axios.defaults.withCredentials).toBeTruthy();
+    expect((axios.defaults.headers.common['User-Agent'] as string).length).toBeGreaterThanOrEqual(115)
   });
 });
 describe('static search functions', () => {
   it('should have the specific name in returned array', async () => {
-    const movies = await mv.quickSearch('film');
+    const movies = await Movie.quickSearch(host,'film');
     expect(movies.length).toBeGreaterThan(0);
     expect(movies[0].name).toContain('Киноработник');
     expect(movies[0].url).toContain(
@@ -18,35 +21,24 @@ describe('static search functions', () => {
     );
   });
   it('should return empty array', async () => {
-    const movies = await mv.quickSearch('');
+    const movies = await Movie.quickSearch(host,'');
     expect(movies.length).toEqual(0);
   });
   it('should have correct properties', async () => {
-    const movies = await mv.search('film', 1);
+    const movies = await Movie.search(host,'film', 1);
     expect(movies.length).toEqual(36);
     const currentMovie = movies[0];
     expect(currentMovie.id).toBe('50483');
     const thumbnail = await axios.get(currentMovie.thumbnail);
     expect(thumbnail.status).toBe(200);
     expect(currentMovie.name).toContain('Киноработник');
-    expect<mv.MovieType>(currentMovie.type).toBe<mv.MovieType>('films');
-  });
-  it('should return non-empty string', async () => {
-    const html = await mv.getHtmlFromURL(
-      'https://rezka.ag/films/documentary/50483-kinorabotnik-2017.html',
-    );
-    expect(html).toBeTruthy();
-    const failHtml = await mv.getHtmlFromURL('http://google.com/generate_204');
-    expect(failHtml).toBeFalsy();
+    expect<MovieType>(currentMovie.type).toBe<MovieType>('films');
   });
 });
 
 describe('movie class methods', () => {
   it('should properly initialize all properties', async () => {
-    const html = await mv.getHtmlFromURL(
-      'https://rezka.ag/films/documentary/50483-kinorabotnik-2017.html',
-    );
-    const movie = new mv.Movie(html);
+    const movie = await Movie.get('https://rezka.ag/films/documentary/50483-kinorabotnik-2017.html')
     expect(movie.description).toContain(
       ' выдающийся кинорежиссер Стенли Кубрик выпускает на большие экраны',
     );
@@ -60,74 +52,18 @@ describe('movie class methods', () => {
     expect(movie.id).toEqual('50483');
   });
   it('should properly get multiple translations', async () => {
-    const html = await mv.getHtmlFromURL(
-      'https://rezka.ag/animation/fantasy/51376-chelovek-benzopila-2022.html',
-    );
-    const movie = new mv.Movie(html);
+    const movie = await Movie.get('https://rezka.ag/animation/fantasy/51376-chelovek-benzopila-2022.html')
     const translations = movie.translators;
     expect(translations.length).toEqual(18);
     expect(translations[0].id).toEqual('56');
     expect(translations[2].name).toContain('SHIZA');
   });
-  it('should correctly convert cdn to list of cdn urls', () => {
-    const encoded =
-      '#hWzM2MHBdaHR0cHM6Ly9zdHJlYW0udm9pZGJvb3N0LmNjL2M5NjkyNGUwNWZiODQ0NjljNDZjZGNhMTkzODgzYTA4OjIwMjMxMTA2MTE6T1ZaYU9IZFZjUzlTYUdSRVNIbzFkamxGYUZsTFQxcFhLMlE0TkVkb1JVZzVSMWxoYjNaaVEwZHdhM2syVkZodlFVWTNVazlMZEVSTE5GVXlXblphUkRWMVdtMXBaRk52YjJWQlNrSXlVRTR2WmtwbFZYYzlQUT09LzcvMC80LzAvNS84L3A4bnl3Lm1wNDpobHM6bWFuaWZlc3QubTN1OCBvciBodHRwczovL3N0cmVhbS52b2lkYm9vc3QuY2MvYzk2OTI0ZTA1ZmI4NDQ2OWM0NmNkY2ExOTM4ODNhMDg6MjAyMzExMDYxMTpPVlphT0hkVmNTOVNhR1JFU0hvMWRqbEZhRmxMVDFwWEsyUTRORWRvUlVnNVIxbGhiM1ppUTBkd2EzazJWRmh2UVVZM1VrOUxkRVJMTkZVeVduWmFSRFYxV20xcFpGTnZiMlZCU2tJeVVFNHZaa3BsVlhjOVBRPT0vNy8wLzQvMC81LzgvcDhueXcubXA0LFs0ODBwXWh0dHBzOi8vc3RyZWFtLnZvaWRib29zdC5jYy8yOTc4Zjk0NGMyYTZlMDQ4NTMyN2QwZjA1YjM3YmVjMDoyMDIzMTEwNjExOk9WWmFPSGRWY1M5U2FHUkVTSG8xZGpsRmFGbExUMXBYSzJRNE5FZG9SVWc1UjFsaGIzWmlRMGR3YTNrMlZGaHZRVVkzVWs5TGRFUkxORlV5V25aYVJEVjFXbTFwWkZOdmIyVkJTa0l5VUU0dlprcGxWWGM5UFE9PS83LzAvNC8wLzUvOC94b2RoeS5tcDQ6aGxzOm1hbmlmZXN0Lm0zdTggb3IgaHR0cHM6Ly9zdHJlYW0udm9pZGJvb3N0LmNjLzI5NzhmOTQ0YzJhNmUwNDg1MzI3ZDBmMDViMzdiZWMwOjIwMjMxMTA2MTE6T1ZaYU9IZFZjUzlTYUdSRVNIbzFkamxGYUZsTFQxcFhLMlE0TkVkb1JVZzVSMWxoYjNaaVEwZHdhM2syVkZodlFVWTNVazlMZEVSTE5GVXlXblphUkRWMVdtMXBaRk52YjJWQlNrSXlVRTR2WmtwbFZYYzlQUT09LzcvMC80LzAvNS84L3hvZGh5Lm1wNCxbNzIwcF1odHRwczovL3N0cmVhbS52b2lkYm9vc3QuY2MvOTlhMjkyN2RkZTgyNzVkODNiYjllNGM2MGQ0OGY2NDk6MjAyMzExMDYxMTpPVlphT0hkVmNTOVNhR1JFU0hvMWRqbEZhRmxMVDFwWEsyUTRORWRvUlVnNVIxbGhiM1ppUTBkd2EzazJWRmh2UVVZM1VrOUxkRVJMTkZVeVduWmFSRFYxV20xcFpGTnZiMlZCU2tJeVVFNHZaa3BsVlhjOVBRPT0vNy8wLzQvMC81LzgvY3huN2YubXA0OmhsczptYW5pZmVzdC5tM3U4IG9yIGh0dHBzOi8vc3RyZWFtLnZvaWRib29zdC5jYy85OWEyOTI3ZGRlODI3NWQ4M2JiOWU0YzYwZDQ4ZjY0OToyMDIzMTEwNjExOk9WWmFPSGRWY1M5U2FHUkVTSG8xZGpsRmFGbExUMXBYSzJRNE5FZG9SVWc1UjFsaGIzWmlRMGR3YTNrMl//_//JCQjISFAIyFAIyM=ZGaHZRVVkzVWs5TGRFUkxORlV5V25aYVJEVjFXbTFwWkZOdmIyVkJTa0l5VUU0dlprcG//_//JCQhIUAkJEBeIUAjJCRAxWWGM5UFE9PS83LzAvNC8wLzUvOC9jeG43Zi5tcDQsWzEw//_//Xl5eIUAjIyEhIyM=ODBwXWh0dHBzOi8vc3RyZWFtLnZvaWRib29zdC5jYy8xNDY0ZTE4MWM0MDg2ODlhOTRiMGE2NmI2Y2I0NTA2NjoyMDIzMTEwNjExOk9WWmFPSGRWY1M5U2FHUkVTSG8xZGpsRmFGbExUMXBYSzJRNE5FZG9SVWc1UjFsaGIzWmlRMGR3YTNrMlZ//_//QEBAQEAhIyMhXl5eGaHZRVVkzVWs5TGRFUkxORlV5V25aYVJEVjFXbTFwWkZOdmIyVkJTa0l5VUU0dlprcGxWWGM5UFE9PS83LzAvNC8wLzUvOC9wMGF6di5tcDQ6aGxzOm1hbmlmZXN0Lm0zdTggb3IgaHR0cHM6Ly9zdHJlYW0udm9pZGJvb3N0LmNjLzE0NjRlMTgxYzQwODY4OWE5NGIwYTY2YjZjYjQ1MDY2OjIwMjMxMTA2MTE6T1ZaYU9IZFZjUzlTYUdSRVNIbzFkamxGYUZsTFQxcFhLMlE0TkVkb1JVZzVSMWxoYjNaaVEwZHdhM2syVkZodlFVWTNVazlMZEVSTE5GVXlXblphUkRWMVdtMXBaRk52YjJWQlNrSXlVRTR2WmtwbFZYYzlQUT09LzcvMC80LzAvNS84L3AwYX//_//IyMjI14hISMjIUBAp2Lm1wNCxbMTA4MHAgVWx0cmFdaHR0cHM6Ly9zdHJlYW0udm9pZGJvb3N0LmNjLzE0NjRlMTgxYzQwODY4OWE5NGIwYTY2YjZjYjQ1MDY2OjIwMjMxMTA2MTE6T1ZaYU9IZFZjUzlTYUdSRVNIbzFkamxGYUZsTFQxcFhLMlE0TkVkb1JVZzVSMWxoYjNaaVEwZHdhM2syVkZodlFVWTNVazlMZEVSTE5GVXlXblphUkRWMVdtMXBaRk52YjJWQlNrSXlVRTR2WmtwbFZYYzlQUT09LzcvMC80LzAvNS84L3AwYXp2Lm1wNDpobHM6bWFuaWZlc3QubTN1OCBvciBodHRwczovL3N0cmVhbS52b2lkYm9vc3QuY2MvMTQ2NGUxODFjNDA4Njg5YTk0YjBhNjZiNmNiNDUwNjY6MjAyMzExMDYxMTpPVlphT0hkVmNTOVNhR1JFU0hvMWRqbEZhRmxMVDFwWEsyUTRORWRvUlVnNVIxbGhiM1ppUTBkd2EzazJWRmh2UVVZM1VrOUxkRVJMTkZVeVduWmFSRFYxV20xcFpGTnZiMlZCU2tJeVVFNHZaa3BsVlhjOVBRPT0vNy8wLzQvMC81LzgvcDBhenYubXA0';
-    const str = mv.clearTrash(encoded);
-    expect(/^[\x00-\x7F]*$/.test(str)).toBeTruthy();
-    const qurls = str.split(',');
-    expect(qurls.length).toBeGreaterThan(4);
-    const regex = /\[(.*)\](.*):hls:(?:.*)or (.*)/;
-    for (let url of qurls) {
-      const res = regex.exec(url);
-      expect(res?.[0]).toBeTruthy();
-      expect(res![1]).toContain('p');
-      expect(res![2]).toBeTruthy();
-      expect(res![3]).toBeTruthy();
-    }
-  });
-  it('should retrieve subtitles', async () => {
-    const html = await mv.getHtmlFromURL(
-      'https://rezka.ag/cartoons/fantasy/63772-supermonstry-i-ih-pitomcy-2019.html',
-    );
-    const movie = new mv.Movie(html);
-    const videoInfo = await mv.getStream(
-      movie.id,
-      '1',
-      '3',
-      movie.translators[1].id,
-    );
-    expect(videoInfo.videos.length).toBeGreaterThanOrEqual(1);
-    expect(videoInfo.subtitles.length).toEqual(2);
-    expect(videoInfo.defaultSubtitle).not.toBeNull();
-    expect(await mv.testRemoteFile(videoInfo.subtitles[0].url)).toBeTruthy();
-  });
-
-  it('should correctly parse cdn urls', async () => {
-    const html = await mv.getHtmlFromURL(
-      'https://rezka.ag/animation/fantasy/51376-chelovek-benzopila-2022.html',
-    );
-    const movie = new mv.Movie(html);
-    expect(movie.translators.length).toEqual(18);
-    const belTranslation = movie.translators[16];
-    const stream = await mv.getStream(movie.id, '1', '4', belTranslation.id);
-    expect(stream.videos.length).toBeGreaterThan(4);
-    expect(stream.videos[0].quality).toEqual('360p');
-    expect(await mv.testRemoteFile(stream.videos[0].streamUrl)).toBeTruthy();
-  });
   it('should get seasons & episodes from translator id', async () => {
-    const html = await mv.getHtmlFromURL(
-      'https://rezka.ag/animation/adventures/12113-van-pis-1999.html',
-    );
-    const movie = new mv.Movie(html);
+    const movie = await Movie.get('https://rezka.ag/animation/adventures/12113-van-pis-1999.html');
     const translation = movie.translators[1];
-    const seasons = await mv.getTranslationSeries(
-      movie.id,
-      translation,
-      movie.favs,
-    );
-    expect(seasons.length).toEqual(21);
-    expect(seasons[0].episodes[0].quality).toBe<mv.VideoQuality>('480p');
-    const season = seasons[10];
+    expect(await movie.getTranslationSeries(translation.id)).toBeTruthy();
+    expect(translation?.seasons?.length).toEqual(21);
+    const season = translation!.seasons![10];
     expect(season.translation.id).toEqual('234');
     expect(season.translation.name).toContain('Persona');
     expect(season.id).toEqual('11');
@@ -135,24 +71,25 @@ describe('movie class methods', () => {
     expect(season.episodes.length).toEqual(26);
     expect(season.episodes[25].name).toMatch(/Серия \d*/);
     expect(season.episodes[25].id).toEqual('407');
-    const firstTranslation = await mv.getTranslationSeries(
-      movie.id,
-      movie.translators[0],
-      movie.favs,
-    );
-    await mv.getStream(movie.id,season,season.episodes[0],movie.translators[0].id);
-    const videos = mv.parseCdnUrl(firstTranslation[0].episodes[0].cdnUrl);
-    expect(videos.length).toBeGreaterThan(4);
-    expect(videos[0].quality).not.toBe<mv.VideoQuality>('none');
-    const res = await axios.head(videos[0].streamUrl);
+  });
+  it('should correctly parse cdn urls and check availability',async () => {
+    const movie = await Movie.get('https://rezka.ag/animation/fantasy/51376-chelovek-benzopila-2022.html')
+    const translations = movie.translators;
+    expect(translations.length).toEqual(18);
+    expect(translations[0].id).toEqual('56');
+    expect(translations[2].name).toContain('SHIZA');
+    const props = await movie.getEpisodeStreams('1','1',translations[0].id);
+    expect(props.length).toBe(5);
+    const cdns = props[0];
+    expect(cdns.voidboostCdn).toContain('https://');
+    expect(await axios.head(cdns.voidboostCdn)).toThrow();
+    const res = await axios.head(cdns.ukrtelCdn);
     expect(res.status).toBe(200);
-  });
-  it('should make correct cartesian array', () => {
-    expect(mv.generateCombinations(['@', '#', '!', '^', '$'], 2).length).toBe(
-      25,
-    );
-    expect(mv.generateCombinations(['@', '#', '!', '^', '$'], 3).length).toBe(
-      125,
-    );
-  });
+  },30000);
+  it('should correctly parse cdn urls AND return ukrtel cdn url v2',() => {
+    const cdnEncoded = '#hWzM2MHBdaHR0cHM6Ly9wcngyLWFtcy51a3J0ZWxjZG4ubmV0L2UzYWI5NTYzMzAyNDFjYmEyNmEwYTg0MWI3OWNlNTQxOjIwMjQwMzA5MTk6WlhkbGRqVnRja3MwT0ZOdU1rUlpTa05DTVRKNVUzaHJkSGxaYVZWWlJ6QXJZWFVyWW1WVWNIWnpNR3gyV1U1alMweFNRMm//_//IyMjI14hISMjIUBAREUmtRM1NUaDRaWGR0ZFhsR2VIQTBSbEIwUjFOVlJFTk5RbVpMYkhaWmExRTlQUT09LzYvOS8yLzMvMC8yL293djFrLm1wNCBvciBodHRwczovL3N0cmVhbS52b2lkYm9vc3QuY2MvZTNhYjk1NjMzMDI0MWNiYTI2YTBhODQxYjc5Y2U1NDE6MjAyNDAzMDkxOTpaWGRsZGpWdGNrczBPRk51TWtSWlNrTkNNVEo1VTNocmRIbFphVlZaUnpBcllYVXJZbVZVY0haek1HeDJXVTVqUzB4U1EyZERSa1EzU1RoNFpYZHRkWGxHZUhBMFJsQjBSMU5WUkVOTlFtWkxiSFpaYTFFOVBRPT0vNi85LzIvMy8wLzIvb3d2MWsubXA0LFs0ODBwXWh0dHBzOi8vcHJ4Mi1hbXMudWtydGVsY2RuLm5ldC82NDU1OWExZWRmZjg2NjViNTVlZDY5Y2I0YzVmNzQwNDoyMDI0MDMwOTE5OlpYZGxkalZ0Y2tzME9GTnVNa1JaU2tOQ01USjVVM2hyZEhsWmFWVlpSekFyWVhVclltVlVjSFp6TUd4MldVNWpTMHhTUTJkRFJrUTNTVGg0WlhkdGRYbEdlSEEwUmxCMFIxTlZSRU5OUW1aTGJIWlphMUU5UFE9PS82LzkvMi8zLzAvMi93a2t4ZS5tcDQgb3IgaHR0cHM6Ly9zdHJlYW0udm9pZGJvb3N0LmNjLzY0NTU5YTFlZGZmODY2NWI1NWVkNjljYjRjNWY3NDA0OjIwMjQwMzA5MTk6WlhkbGRqVnRja3MwT0ZOdU1rUlpTa05DTVRKNVUzaHJkSGxaYVZWWlJ6QXJZWFVyWW1WVWNIWnpNR3gyV1U1alMweFNRMmREUmtRM1NUaDRaWGR0ZFhsR2VIQTBSbEIwUjFOVlJFTk5RbVpMYkhaWmExRTlQUT09LzYvOS8yLzMvMC8yL3dra3hlLm1wNCxbNzIwcF1odHRwczovL3ByeDItYW1zLnVrcnRlbGNkbi5uZXQvNDE3ZDBlNWU//_//Xl5eIUAjIyEhIyM=2YTMyZDg2YThlY2Y5YTBhMDUxNDMwYjA6MjAyNDAzMDkxOTpaWGRsZGpWdGNrczBPRk51TWtSWlNrTkNNVEo1VTNocmRIbFphVlZaUnpBcllYVXJZbVZVY0haek1HeDJXVTVqUzB4U1EyZERSa1EzU1RoNFpYZHRkWGxHZUhBMFJsQjBSMU5WUkVOTlFtWkxiSFpaYTFFOVBRPT0vNi85LzIvMy8wLzIvNTdoZnkubXA0IG9yIGh0dHBzOi8vc3RyZWFtLnZvaWRib29zdC5jYy80MTdkMGU1ZTZhMzJkODZhOGVjZjlhMGEwNTE0MzBiMDoyMDI0MDMwOTE5OlpYZGxkalZ0Y2tzME9GTnVNa1JaU2tOQ01USjVVM2hyZEhsWmFWVlpSekFyWVhVclltVlVjSFp6TUd4MldVNWpTMHhTUTJkRFJrUTNTVGg0WlhkdGRYbEdlSEEwUmxCMFIxTlZSRU5OUW1aTGJIWlphMUU5UFE9PS82LzkvMi8zLzAvMi81N2hmeS5tcDQsWzEwODBwXWh0dHBzOi8vcHJ4Mi1hbXMudWtydGVsY2RuLm5ldC80YTUzMjE1ZDUyNjNkMjI4OTAxYzA2N2QwY2JhZjlhYToyMDI0MDMwOTE5OlpYZGxkalZ0Y2tzME9GTnVNa1JaU2tOQ01USjVVM2hyZEhsWmFWVlpSekFyWVhVclltVlVjSFp6TUd4MldVNWpTMHhTUTJkRFJrUTNTVGg0WlhkdGRYbEdlSEEwUmxCMFIxTlZSRU5OUW1aTGJIWlphMUU5UFE9PS82LzkvMi8zLzAvMi9iYnN1Ny5tcDQgb3IgaHR0cHM6Ly9zdHJlYW0udm9pZGJvb3N0LmNjLzRhNTMyMTVkNTI2M2QyMjg5MDFjMDY3ZDBjYmFmOWFhOjIwMjQwMzA5MTk6WlhkbGRqVnRja3MwT0ZOdU1rUlpTa05DTVRKNVUzaHJkSGxaYVZWWlJ6QXJZWFVyWW1WVWNIWnpNR3gyV1U1alMweFNRMmREUmtRM1NUaDRaWGR0ZFhsR2VIQTBSbEIwUjFOVlJFTk5RbVpMYkhaWmExRTlQUT09LzYvOS8yLzMvMC8yL2Jic3U3Lm1wNCxbMTA4MHAgVWx0cmFdaHR0cHM6Ly9wcngyLWFtcy51a3J0ZWxjZG4ubmV0LzRhNTMyMTVkNTI2M2QyMjg5MDFjMDY3ZDBjYmFmOWFhOjIwMjQwMzA5MTk6WlhkbGRqVnRja3MwT0ZOdU1rUlpTa05DTVRKNVUzaHJkSGxaYVZWWlJ6QXJZWFVyWW1WVWNIWnpNR3gyV1U1alMweFNRMmREUmtRM1NUaDRaWGR0ZFhsR2VIQTBSbEIwUjFOVlJFTk5RbVpMYkhaWmExRTlQUT09LzYvOS8yLzMvMC8yL2Jic3//_//JCQhIUAkJEBeIUAjJCRAU3Lm1wNCBvciBodHRwczovL3N0cmVhbS52b2lkYm9vc3QuY2MvNGE1MzIxNWQ1MjYzZDIyODkwMWMwNjdkMGNiYWY5YWE6MjAyNDAzMDkxOTpaWGRsZGpWdGNrczBPRk51TWtSWlNrTkNNVEo1VTNocmRIbFphVlZaU//_//QEBAQEAhIyMhXl5enpBcllYVXJZbVZVY0haek1HeDJX//_//JCQjISFAIyFAIyM=VTVqUzB4U1EyZERSa1EzU1RoNFpYZHRkWGxHZUhBMFJsQjBSMU5WUkVOTlFtWkxiSFpaYTFFOVBRPT0vNi85LzIvMy8wLzIvYmJzdTcubXA0';
+    const cleared = Movie.clearTrash(cdnEncoded);
+    log('cleared',cleared)
+    expect(cleared).toContain('ukrtelcdn.net');
+  })
 });
