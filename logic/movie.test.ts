@@ -1,14 +1,13 @@
+import {Movie} from './movie';
 import axios from 'axios';
-import { init} from './init';
-import {Movie, MovieType} from './movie';
-import { log} from 'console';
-init();
+import init from './axios';
+import { MovieType } from '../utils/types';
 const host = 'rezka.ag';
 describe('axios initialization', () => {
   it('should initialize', () => {
     init();
     expect(axios.defaults.withCredentials).toBeTruthy();
-    expect((axios.defaults.headers.common['User-Agent'] as string).length).toBeGreaterThanOrEqual(115)
+    expect((axios.defaults.headers.common['User-Agent'] as string)).toBe("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36")
   });
 });
 describe('static search functions', () => {
@@ -78,18 +77,34 @@ describe('movie class methods', () => {
     expect(translations.length).toEqual(18);
     expect(translations[0].id).toEqual('56');
     expect(translations[2].name).toContain('SHIZA');
-    const props = await movie.getEpisodeStreams('1','1',translations[0].id);
-    expect(props.length).toBe(5);
-    const cdns = props[0];
+    const streams = await movie.getEpisodeStreams('1','1',translations[0].id);
+    expect(streams.length).toBe(5);
+    const cdns = streams[0];
     expect(cdns.voidboostCdn).toContain('https://');
-    expect(await axios.head(cdns.voidboostCdn)).toThrow();
+    // i can't fetch voidboost cdn because it's blocked in ukraine, so i'm using ukrtel
     const res = await axios.head(cdns.ukrtelCdn);
     expect(res.status).toBe(200);
-  },30000);
+  });
+  it("should correctly retrieve movie cdn links",async () => {
+    const movie = await Movie.get("https://rezka.ag/films/fiction/647-avatar-2009.html");
+    expect(movie.translators.length).toBe(15);
+    const streams = await movie.getMovieStreams(movie.translators[3]);
+    expect(streams.length).toBe(5);
+    expect(streams[0].ukrtelCdn).toContain("ukrtelcdn");
+    expect(streams[0].voidboostCdn).toContain("voidboost");
+  })
+  it("should correctly differentiate same translation names and ads,camrip,director editions",async () => {
+    const movie = await Movie.get("https://rezka.ag/films/fiction/647-avatar-2009.html");
+    const sameTranslations = movie.translators.filter(x => x.id == "56");
+    expect(sameTranslations.length).toBe(2);
+      const nodirector = await movie.getMovieStreams(sameTranslations[0]);
+      await new Promise((res,_rej) => setTimeout(res,1000));
+      const director = await movie.getMovieStreams(sameTranslations[1]);
+      expect(nodirector[0]).not.toEqual(director[0]);
+  });
   it('should correctly parse cdn urls AND return ukrtel cdn url v2',() => {
     const cdnEncoded = '#hWzM2MHBdaHR0cHM6Ly9wcngyLWFtcy51a3J0ZWxjZG4ubmV0L2UzYWI5NTYzMzAyNDFjYmEyNmEwYTg0MWI3OWNlNTQxOjIwMjQwMzA5MTk6WlhkbGRqVnRja3MwT0ZOdU1rUlpTa05DTVRKNVUzaHJkSGxaYVZWWlJ6QXJZWFVyWW1WVWNIWnpNR3gyV1U1alMweFNRMm//_//IyMjI14hISMjIUBAREUmtRM1NUaDRaWGR0ZFhsR2VIQTBSbEIwUjFOVlJFTk5RbVpMYkhaWmExRTlQUT09LzYvOS8yLzMvMC8yL293djFrLm1wNCBvciBodHRwczovL3N0cmVhbS52b2lkYm9vc3QuY2MvZTNhYjk1NjMzMDI0MWNiYTI2YTBhODQxYjc5Y2U1NDE6MjAyNDAzMDkxOTpaWGRsZGpWdGNrczBPRk51TWtSWlNrTkNNVEo1VTNocmRIbFphVlZaUnpBcllYVXJZbVZVY0haek1HeDJXVTVqUzB4U1EyZERSa1EzU1RoNFpYZHRkWGxHZUhBMFJsQjBSMU5WUkVOTlFtWkxiSFpaYTFFOVBRPT0vNi85LzIvMy8wLzIvb3d2MWsubXA0LFs0ODBwXWh0dHBzOi8vcHJ4Mi1hbXMudWtydGVsY2RuLm5ldC82NDU1OWExZWRmZjg2NjViNTVlZDY5Y2I0YzVmNzQwNDoyMDI0MDMwOTE5OlpYZGxkalZ0Y2tzME9GTnVNa1JaU2tOQ01USjVVM2hyZEhsWmFWVlpSekFyWVhVclltVlVjSFp6TUd4MldVNWpTMHhTUTJkRFJrUTNTVGg0WlhkdGRYbEdlSEEwUmxCMFIxTlZSRU5OUW1aTGJIWlphMUU5UFE9PS82LzkvMi8zLzAvMi93a2t4ZS5tcDQgb3IgaHR0cHM6Ly9zdHJlYW0udm9pZGJvb3N0LmNjLzY0NTU5YTFlZGZmODY2NWI1NWVkNjljYjRjNWY3NDA0OjIwMjQwMzA5MTk6WlhkbGRqVnRja3MwT0ZOdU1rUlpTa05DTVRKNVUzaHJkSGxaYVZWWlJ6QXJZWFVyWW1WVWNIWnpNR3gyV1U1alMweFNRMmREUmtRM1NUaDRaWGR0ZFhsR2VIQTBSbEIwUjFOVlJFTk5RbVpMYkhaWmExRTlQUT09LzYvOS8yLzMvMC8yL3dra3hlLm1wNCxbNzIwcF1odHRwczovL3ByeDItYW1zLnVrcnRlbGNkbi5uZXQvNDE3ZDBlNWU//_//Xl5eIUAjIyEhIyM=2YTMyZDg2YThlY2Y5YTBhMDUxNDMwYjA6MjAyNDAzMDkxOTpaWGRsZGpWdGNrczBPRk51TWtSWlNrTkNNVEo1VTNocmRIbFphVlZaUnpBcllYVXJZbVZVY0haek1HeDJXVTVqUzB4U1EyZERSa1EzU1RoNFpYZHRkWGxHZUhBMFJsQjBSMU5WUkVOTlFtWkxiSFpaYTFFOVBRPT0vNi85LzIvMy8wLzIvNTdoZnkubXA0IG9yIGh0dHBzOi8vc3RyZWFtLnZvaWRib29zdC5jYy80MTdkMGU1ZTZhMzJkODZhOGVjZjlhMGEwNTE0MzBiMDoyMDI0MDMwOTE5OlpYZGxkalZ0Y2tzME9GTnVNa1JaU2tOQ01USjVVM2hyZEhsWmFWVlpSekFyWVhVclltVlVjSFp6TUd4MldVNWpTMHhTUTJkRFJrUTNTVGg0WlhkdGRYbEdlSEEwUmxCMFIxTlZSRU5OUW1aTGJIWlphMUU5UFE9PS82LzkvMi8zLzAvMi81N2hmeS5tcDQsWzEwODBwXWh0dHBzOi8vcHJ4Mi1hbXMudWtydGVsY2RuLm5ldC80YTUzMjE1ZDUyNjNkMjI4OTAxYzA2N2QwY2JhZjlhYToyMDI0MDMwOTE5OlpYZGxkalZ0Y2tzME9GTnVNa1JaU2tOQ01USjVVM2hyZEhsWmFWVlpSekFyWVhVclltVlVjSFp6TUd4MldVNWpTMHhTUTJkRFJrUTNTVGg0WlhkdGRYbEdlSEEwUmxCMFIxTlZSRU5OUW1aTGJIWlphMUU5UFE9PS82LzkvMi8zLzAvMi9iYnN1Ny5tcDQgb3IgaHR0cHM6Ly9zdHJlYW0udm9pZGJvb3N0LmNjLzRhNTMyMTVkNTI2M2QyMjg5MDFjMDY3ZDBjYmFmOWFhOjIwMjQwMzA5MTk6WlhkbGRqVnRja3MwT0ZOdU1rUlpTa05DTVRKNVUzaHJkSGxaYVZWWlJ6QXJZWFVyWW1WVWNIWnpNR3gyV1U1alMweFNRMmREUmtRM1NUaDRaWGR0ZFhsR2VIQTBSbEIwUjFOVlJFTk5RbVpMYkhaWmExRTlQUT09LzYvOS8yLzMvMC8yL2Jic3U3Lm1wNCxbMTA4MHAgVWx0cmFdaHR0cHM6Ly9wcngyLWFtcy51a3J0ZWxjZG4ubmV0LzRhNTMyMTVkNTI2M2QyMjg5MDFjMDY3ZDBjYmFmOWFhOjIwMjQwMzA5MTk6WlhkbGRqVnRja3MwT0ZOdU1rUlpTa05DTVRKNVUzaHJkSGxaYVZWWlJ6QXJZWFVyWW1WVWNIWnpNR3gyV1U1alMweFNRMmREUmtRM1NUaDRaWGR0ZFhsR2VIQTBSbEIwUjFOVlJFTk5RbVpMYkhaWmExRTlQUT09LzYvOS8yLzMvMC8yL2Jic3//_//JCQhIUAkJEBeIUAjJCRAU3Lm1wNCBvciBodHRwczovL3N0cmVhbS52b2lkYm9vc3QuY2MvNGE1MzIxNWQ1MjYzZDIyODkwMWMwNjdkMGNiYWY5YWE6MjAyNDAzMDkxOTpaWGRsZGpWdGNrczBPRk51TWtSWlNrTkNNVEo1VTNocmRIbFphVlZaU//_//QEBAQEAhIyMhXl5enpBcllYVXJZbVZVY0haek1HeDJX//_//JCQjISFAIyFAIyM=VTVqUzB4U1EyZERSa1EzU1RoNFpYZHRkWGxHZUhBMFJsQjBSMU5WUkVOTlFtWkxiSFpaYTFFOVBRPT0vNi85LzIvMy8wLzIvYmJzdTcubXA0';
     const cleared = Movie.clearTrash(cdnEncoded);
-    log('cleared',cleared)
     expect(cleared).toContain('ukrtelcdn.net');
   })
 });

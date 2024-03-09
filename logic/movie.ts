@@ -1,92 +1,6 @@
 import axios from 'axios';
 import {parse, HTMLElement, valid} from 'node-html-parser';
-
-export type MovieType = 'none' | 'animation' | 'cartoons' | 'series' | 'films';
-
-export type VideoQuality =
-  | 'none'
-  | '360p'
-  | '480p'
-  | '720p'
-  | '1080p'
-  | '1080p Ultra';
-
-export interface Instance {
-  id: string;
-  name: string;
-}
-
-export class Translation implements Instance {
-  constructor(
-    public id: string,
-    public name: string,
-    public is_director?: string,
-    public is_ads?: string,
-    public is_camrip?: string,
-    public seasons?: Season[],
-  ) {}
-}
-
-export interface VideoProps {
-  quality: VideoQuality;
-  ukrtelCdn: string;
-  voidboostCdn: string;
-}
-
-export class Episode implements Instance {
-  constructor(
-    public id: string,
-    public name: string,
-    public cdnUrl?: string,
-    public quality?: VideoQuality,
-  ) {}
-}
-
-export class Season implements Instance {
-  constructor(
-    public id: string,
-    public name: string,
-    public episodes: Episode[],
-    public translation: Translation,
-  ) {}
-}
-
-export class QuickMovie implements Instance {
-  constructor(
-    public id: string,
-    public name: string,
-    public url: string,
-    public enabled: boolean,
-  ) {}
-}
-
-export class PreviewMovie implements QuickMovie {
-  constructor(
-    public id: string,
-    public name: string,
-    public url: string,
-    public enabled: boolean,
-    public thumbnail: string,
-    public type: MovieType,
-  ) {}
-}
-
-export class HistoryMovie extends PreviewMovie {
-  constructor(
-    public id: string,
-    public name: string,
-    public url: string,
-    public thumbnail: string,
-    public type: MovieType,
-    public watchedTranslation: Translation,
-    public whenWatched: number,
-    public watchedSeconds: number,
-    public watchedSeason?: Season,
-    public watchedEpisode?: Episode,
-  ) {
-    super(id, name, url, true, thumbnail, type);
-  }
-}
+import { Episode, Instance, MovieType, PreviewMovie, QuickMovie, Season, Translation, VideoProps, VideoQuality } from '../utils/types';
 
 export class Movie extends PreviewMovie {
   private get getCdnSeries(): URL {
@@ -94,7 +8,6 @@ export class Movie extends PreviewMovie {
   }
 
   public translators: Translation[] = [];
-
   private constructor(
     public id: string,
     public name: string,
@@ -104,13 +17,14 @@ export class Movie extends PreviewMovie {
     public originalName: string,
     public description: string,
     public host: string,
-    public favs?: string,
+    public PHPSESSID: string[],
+    public favs: string,
   ) {
     super(id, name, url, true, thumbnail, type);
   }
 
   static async get(url: string): Promise<Movie> {
-    const res = await axios.get(url);
+    const res = await axios.get(url, {withCredentials: true});
     const html = res.data;
     if (!valid(html)) throw new Error('get() invalid HTML');
     const dom = parse(html);
@@ -123,6 +37,8 @@ export class Movie extends PreviewMovie {
     const originalName = dom.querySelector(
       'div[itemprop="alternativeHeadline"]',
     )!.textContent!;
+    const cookies = res.headers['set-cookie']!.map(x => x.split(' ')[0]);
+    cookies.push('getinfo=1');
     const translatorList = dom.getElementById('translators-list');
     const movie = new Movie(
       id,
@@ -133,6 +49,7 @@ export class Movie extends PreviewMovie {
       originalName,
       desc,
       new URL(url).host,
+      cookies,
       favs,
     );
     if (translatorList) {
@@ -175,7 +92,11 @@ export class Movie extends PreviewMovie {
   ): Promise<QuickMovie[]> {
     try {
       const url = new URL('/engine/ajax/search.php', `https://${host}`);
-      const res = await axios.post(url.toString(), {q: query});
+      const res = await axios.post(
+        url.toString(),
+        {q: query},
+        {withCredentials: true},
+      );
       const dom = parse(res.data);
       const qmovies = dom.querySelectorAll('li > a').map<QuickMovie>(x => ({
         enabled: true,
@@ -200,7 +121,7 @@ export class Movie extends PreviewMovie {
     url.searchParams.append('subaction', 'search');
     url.searchParams.append('q', query);
     url.searchParams.append('page', page.toString());
-    const res = await axios.get(url.toString());
+    const res = await axios.get(url.toString(), {withCredentials: true});
     const dom = parse(res.data);
     return dom
       .querySelectorAll('.b-content__inline_item')
@@ -249,8 +170,12 @@ export class Movie extends PreviewMovie {
     if (translation.is_camrip) reqArgs['is_camrip'] = translation.is_camrip;
     if (translation.is_director)
       reqArgs['is_director'] = translation.is_director;
+
     const res = await axios.post(this.getCdnSeries.toString(), reqArgs, {
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      withCredentials: true,
+      headers: {
+        Cookie: this.PHPSESSID,
+      },
     });
     if (!res.data.success) {
       console.warn(
@@ -287,23 +212,28 @@ export class Movie extends PreviewMovie {
     return true;
   }
 
-  public async getMovieStreams(translationId: string): Promise<VideoProps[]> {
-    const translation = this.translators.find(x => x.id == translationId);
-    const res = await axios.post(this.getCdnSeries.toString(), {
-      id: this.id,
-      translator_id: translation?.id ?? translationId,
-      favs: this.favs,
-      is_ads: translation?.is_ads ?? '0',
-      is_director: translation?.is_director ?? '0',
-      is_camrip: translation?.is_camrip ?? '0',
-      action: 'get_movie',
-    });
-    if (!res.data.success) {
+  public async getMovieStreams(
+    translation: Translation,
+  ): Promise<VideoProps[]> {
+    const res = await axios.post(
+      this.getCdnSeries.toString(),
+      {
+        id: this.id,
+        translator_id: translation.id,
+        favs: this.favs,
+        is_ads: translation?.is_ads ?? '0',
+        is_director: translation?.is_director ?? '0',
+        is_camrip: translation?.is_camrip ?? '0',
+        action: 'get_movie',
+      },
+      {withCredentials: true, headers: {Cookie: this.PHPSESSID}},
+    );
+    if (!res.data?.success) {
       console.warn(
         'getMovie could not retrieve movie',
         translation,
-        'RES',
-        res.data,
+        'RES(200)',
+        res.data.toString().substring(0,200),
       );
       return [];
     }
@@ -322,15 +252,12 @@ export class Movie extends PreviewMovie {
       episode,
       action: 'get_stream',
     });
-    console.log('REQUEST OBJECT',reqArgs.toString());
     if (this.favs) reqArgs.append('favs', this.favs);
     const url = new URL(this.getCdnSeries.toString());
     url.searchParams.append('t', Date.now().toString());
     const res = await axios.post(url.toString(), reqArgs.toString(), {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-      },
       withCredentials: true,
+      headers: {Cookie: this.PHPSESSID},
     });
     if (!res.data.success) {
       console.warn(
@@ -345,15 +272,12 @@ export class Movie extends PreviewMovie {
   }
 
   private static parseCdnUrl(cdn: string): VideoProps[] {
-    console.log('input CDN',cdn);
     const decodedUrls = Movie.clearTrash(cdn);
     const decodedArr = decodedUrls.split(',');
     const finArr: VideoProps[] = [];
     for (let url of decodedArr) {
       const r = /\[(.*)\](.*) or (.*)/.exec(url);
       if (r?.[0] == null) continue;
-      // todo понять почему в питоне есть укртелсдн а тут нету!
-      // todo дело в запросах, на запрос с браузера я получаю укр нет, а на аксиос два стримбуста, мейби нужно что-то обновить
       finArr.push({
         quality: r[1] as VideoQuality,
         ukrtelCdn: r[2],

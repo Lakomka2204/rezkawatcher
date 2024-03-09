@@ -1,5 +1,5 @@
 import {MMKV} from 'react-native-mmkv';
-import {HistoryMovie} from '../logic/movie';
+import { HistoryMovie } from '../utils/types';
 
 export const historyStorage = new MMKV({id: 'app-history'});
 export function clearHistory() {
@@ -20,7 +20,7 @@ export function getAllMovies(): HistoryMovie[] {
     }
   }
   return movies.sort(
-    (a, b) => (b?.whenWatched ?? 0) - (a?.whenWatched ?? 0)
+    (a, b) => (b?.lastWatched ?? 0) - (a?.lastWatched ?? 0)
   );
 }
 export function addToHistory(movie: HistoryMovie) {
