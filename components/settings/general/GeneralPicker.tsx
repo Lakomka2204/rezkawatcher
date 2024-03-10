@@ -2,6 +2,7 @@ import { Text, View, FlatList, Button, Modal } from 'react-native';
 import useAppTheme from '../../../hooks/useAppTheme';
 import GeneralCard from './GeneralCard';
 import { useTranslation } from 'react-i18next';
+import TouchableCard from '../../TouchableCard';
 
 interface PickerProps {
   title: string,
@@ -29,7 +30,12 @@ function Picker(props: PickerProps) {
       selected={props.selected}
       onSelect={props.onConfirm}/>}
         />
-      <Button title={t('close')} onPress={()=> props.onConfirm(null)}/>
+      <TouchableCard 
+        className='m-1 p-2 rounded-md border flex items-center'
+        style={{borderColor:theme.colors.text}}
+        onClick={() => props.onConfirm(null)}>
+          <Text style={{color:theme.colors.text}}>{t('close').toUpperCase()}</Text>
+        </TouchableCard>
     </View>
         </Modal>
   );

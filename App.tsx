@@ -15,12 +15,12 @@ import HomeScreen from './screens/HomeScreen';
 import Icon from 'react-native-vector-icons/FontAwesome6';
 import useAppTheme from './hooks/useAppTheme';
 import SettingsScreen from './screens/SettingsScreen';
-import { useTranslation } from 'react-i18next';
+import useLanguage from './hooks/useLanguage';
 init();
 const Tab = createBottomTabNavigator();
 export default function App() {
   const [{ theme }] = useAppTheme();
-  const {t} = useTranslation();
+  const [t] = useLanguage();
   return (
     <SafeAreaView style={{ backgroundColor: theme.colors.background, flex: 1 }}>
       <StatusBar translucent backgroundColor={theme.colors.background} animated showHideTransition="fade" barStyle={theme.dark ? 'light-content' : 'dark-content'} />

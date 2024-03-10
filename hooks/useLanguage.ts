@@ -1,21 +1,34 @@
 import {getLocales} from 'react-native-localize';
 import {useMMKVString} from 'react-native-mmkv';
 import config from '../config';
-import {useEffect, useState} from 'react';
+import {useEffect, useMemo, useState} from 'react';
 import i18n from '../i18n';
-
-export default function useLanguage(): [string, (value: string) => void] {
+import { useTranslation } from 'react-i18next';
+type TFunction = typeof i18n.t;
+export default function useLanguage(): [
+  TFunction,
+  string,
+  (value: string) => void,
+] {
   const [storedLocale, setStoredLocale] = useMMKVString(config.keys.lang);
-  const [locale,setLocale] = useState('');
+  const [t] = useTranslation();
+  
   useEffect(() => {
-    i18n.changeLanguage(locale);
-    if (storedLocale != locale)
-      setStoredLocale(locale);
-  },[locale]);
-  useEffect(() => {
-    if (storedLocale)
-    setLocale(storedLocale);
-    else setLocale(getLocales().find(x => config.langs.includes(x.languageCode))?.languageCode ?? i18n.language)
-  },[storedLocale])
-  return [locale, setLocale];
+    async function reload() {
+      const defaultLang = 
+      storedLocale ??
+        getLocales().find(x => config.langs.includes(x.languageCode))
+          ?.languageCode ??
+        i18n.language;
+        await i18n.changeLanguage(defaultLang)
+        if (!storedLocale)
+          setStoredLocale(defaultLang);
+    }
+    reload();
+  }, [storedLocale]);
+  function setLocale(value: string) {
+    setStoredLocale(value);
+  }
+  
+  return [t, storedLocale!, setLocale];
 }

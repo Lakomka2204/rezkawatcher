@@ -4,6 +4,7 @@ import { AsyncState } from '../../../utils/types';
 import { useEffect, useState } from 'react';
 import useAppTheme from '../../../hooks/useAppTheme';
 import { useTranslation } from 'react-i18next';
+import TouchableCard from '../../TouchableCard';
 
 interface HostProps {
   host: string,
@@ -14,7 +15,7 @@ interface HostProps {
 const Host = (props: HostProps) => {
   const [state, setState] = useState<AsyncState>('idle');
   const [pingMs, setPing] = useState(0);
-  const {t} = useTranslation();
+  const { t } = useTranslation();
   const [{ theme }] = useAppTheme();
   const styles = StyleSheet.create({
     text: {
@@ -45,7 +46,7 @@ const Host = (props: HostProps) => {
       case "loading":
         return <Text style={styles.text}>{t('settings.host.connecting')}...</Text>
       case "success":
-        return <Text className='text-green-500'>{t('settings.host.success',{ms:pingMs})}</Text>
+        return <Text className='text-green-500'>{t('settings.host.success', { ms: pingMs })}</Text>
       case 'fail':
         return <Text className='text-red-600'>{t('settings.host.fail')}</Text>
       case "notfound":
@@ -53,12 +54,10 @@ const Host = (props: HostProps) => {
     }
   }
   return (
-    <TouchableOpacity
-
-      className='m-1 p-3 rounded-md'
+    <TouchableCard
       style={{ backgroundColor: theme.colors.card }}
-      onPress={() => props.onSelect(props.host)}
-      activeOpacity={0.6} >
+      className='m-1 p-3 rounded-md'
+      onClick={() => props.onSelect(props.host)}>
       <View className='flex flex-row'>
         <View className='flex flex-col flex-grow'>
           <Text className='text-lg' style={styles.text}>{props.host}</Text>
@@ -69,7 +68,7 @@ const Host = (props: HostProps) => {
           <ActivityIndicator color={theme.colors.text} size={24} />
         }
       </View>
-    </TouchableOpacity>
+    </TouchableCard>
 
   );
 };

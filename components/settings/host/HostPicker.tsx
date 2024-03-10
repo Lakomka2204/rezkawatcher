@@ -3,6 +3,7 @@ import useAppTheme from '../../../hooks/useAppTheme';
 import Host from './HostCard';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import TouchableCard from '../../TouchableCard';
 
 interface HostAvailabilityProps {
   title: string,
@@ -28,7 +29,12 @@ const HostAvailability = (props: HostAvailabilityProps) => {
             <Host host={item} onSelect={props.onConfirm} refresh={refresh} />
           )}
         />
-        <Button title={t('close')} onPress={() => props.onConfirm(null)} />
+        <TouchableCard 
+        className='m-1 p-2 rounded-md border flex items-center'
+        style={{borderColor:theme.colors.text}}
+        onClick={() => props.onConfirm(null)}>
+          <Text style={{color:theme.colors.text}}>{t('close').toUpperCase()}</Text>
+        </TouchableCard>
       </View>
     </Modal>
   );
