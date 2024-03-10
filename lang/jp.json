@@ -1,0 +1,29 @@
+{
+  "home": "主",
+  "close": "閉める",
+  "settings": {
+    "name": "設定",
+    "theme": {
+      "system": "システム",
+      "dark": "黒い",
+      "light": "白い",
+      "name": "主題",
+      "select": "主題を選ぶ"
+    },
+    "mainHost": {
+      "name": "ドメイン",
+      "select": "ドメインを選ぶ"
+    },
+    "cdnHost": {
+      "name": "CDNホスト",
+      "select": "CDNホストを選ぶ"
+    },
+    "lang": {
+      "en": "英語",
+      "ru": "ロシア語",
+      "jp":"日本語",
+      "name": "語",
+      "select": "語を選ぶ"
+    }
+  }
+}

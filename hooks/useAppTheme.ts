@@ -1,11 +1,11 @@
 import {DarkTheme, DefaultTheme, Theme} from '@react-navigation/native';
-import {AppTheme} from '../utils/types';
 import {useEffect, useState} from 'react';
 import {useColorScheme} from 'react-native';
 import {useMMKVString} from 'react-native-mmkv';
 import config from '../config';
+import { AppTheme } from '../utils/types';
 export interface ThemeHook {
-  value: AppTheme;
+  value: string;
   theme: Theme;
 }
 export default function useAppTheme(): [ThemeHook, (value: AppTheme) => void] {
@@ -16,7 +16,6 @@ export default function useAppTheme(): [ThemeHook, (value: AppTheme) => void] {
     value: storedTheme as AppTheme,
   });
   useEffect(() => {
-    console.log('storage change', storedTheme);
     switch (storedTheme) {
       case 'system':
         setTheme(
@@ -33,7 +32,6 @@ export default function useAppTheme(): [ThemeHook, (value: AppTheme) => void] {
         break;
       default:
         setTheme({theme: DefaultTheme, value: 'system'});
-        console.log('setting system theme');
         setStoredTheme('system');
         break;
     }

@@ -1,0 +1,41 @@
+{
+  "home": "Home",
+  "close": "Close",
+  "settings": {
+    "name": "Settings",
+    "theme": {
+      "system": "System",
+      "dark": "Dark",
+      "light": "Light",
+      "name": "Theme",
+      "select": "Select theme"
+    },
+    "host":{
+      "connecting":"Connecting",
+      "success":"Response {{ms}}ms",
+      "fail":"Error",
+      "notfound":"Timeout"
+    },
+    "mainHost": {
+      "https://rezka.ag": "rezka.ag",
+      "https://hdrezka.sh": "hdrezka.sh",
+      "https://hdrezka.ag": "hdrezka.ag",
+      "https://rezka-ua.tv": "rezka-ua.tv",
+      "name": "Domain",
+      "select": "Select the domain"
+    },
+    "cdnHost": {
+      "https://prx2-ams.ukrtelcdn.net": "ukrtelcdn.net",
+      "https://stream.voidboost.cc": "voidboost.cc",
+      "name": "CDN host",
+      "select": "Select the CDN host"
+    },
+    "lang": {
+      "en": "English",
+      "ru": "Russian",
+      "jp":"Japanese",
+      "name": "Language",
+      "select": "Select language"
+    }
+  }
+}
