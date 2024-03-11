@@ -16,7 +16,7 @@ const HostAvailability = (props: HostAvailabilityProps) => {
   const [refresh, setRefresh] = useState(false);
   const {t} = useTranslation();
   return (
-    <Modal visible={props.visible} animationType='slide'>
+    <Modal visible={props.visible} animationType='slide' onRequestClose={() => props.onConfirm(null)}>
       <View style={{ backgroundColor: theme.colors.background, flex: 1 }} className='p-4'>
         <Text className='text-2xl mb-4 flex-grow-0' style={{ color: theme.colors.text }}>{props.title}</Text>
         <FlatList
