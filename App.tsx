@@ -1,5 +1,6 @@
 import {
   StatusBar,
+  Text,
 } from 'react-native';
 import { NativeWindStyleSheet } from 'nativewind';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,8 +17,15 @@ import Icon from 'react-native-vector-icons/FontAwesome6';
 import useAppTheme from './hooks/useAppTheme';
 import SettingsScreen from './screens/SettingsScreen';
 import useLanguage from './hooks/useLanguage';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 init();
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
+const HomeStack = () => (
+  <Stack.Navigator screenOptions={{headerShown:false}}>
+    <Stack.Screen name='home' component={HomeScreen} />
+  </Stack.Navigator>
+)
 export default function App() {
   const [{ theme }] = useAppTheme();
   const [t] = useLanguage();
@@ -28,8 +36,9 @@ export default function App() {
           <Tab.Navigator initialRouteName='Home'>
             <Tab.Screen
               name="home"
-              component={HomeScreen}
+              component={HomeStack}
               options={{
+                
                 title:t('home'),
                 tabBarIcon(props) {
                   return <Icon {...props} name='house' />
