@@ -2,7 +2,7 @@ import { View, Text, Modal, FlatList } from 'react-native'
 import React, { useRef, useState } from 'react'
 import i18n from '../../../i18n'
 import { Theme } from '@react-navigation/native'
-import ModalWindow, { ModalRef } from '../ModalWindow'
+import ModalWindow, { ModalRef } from '../../ModalWindow'
 import TouchableCard from '../../TouchableCard'
 import GeneralCard from './GeneralCard'
 interface GeneralPickerProps {

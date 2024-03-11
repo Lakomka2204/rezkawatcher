@@ -3,7 +3,7 @@ import React, { useRef, useState } from 'react'
 import i18n from '../../../i18n'
 import { Theme } from '@react-navigation/native'
 import TouchableCard from '../../TouchableCard'
-import ModalWindow, { ModalRef } from '../ModalWindow'
+import ModalWindow, { ModalRef } from '../../ModalWindow'
 import Icon from 'react-native-vector-icons/FontAwesome6'
 import Host from './HostCard'
 interface HostPickerProps {

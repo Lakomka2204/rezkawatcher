@@ -1,6 +1,6 @@
 import { useTheme } from '@react-navigation/native';
 import { Text, View, StyleSheet, Button } from 'react-native';
-import ModalWindow, { ModalRef } from '../components/settings/ModalWindow';
+import ModalWindow, { ModalRef } from '../components/ModalWindow';
 import { useRef, useState } from 'react';
 import HostPickerv2 from '../components/settings/host/HostPicker';
 import useLanguage from '../hooks/useLanguage';
@@ -20,14 +20,6 @@ const HomeScreen = (props: HomeScreenProps) => {
   return (
     <View style={styles.container}>
       <Text style={{color:theme.colors.text}}>HomeScreen</Text>
-      <HostPickerv2
-      setValue={(v)=>console.log('selected',v)}
-      t={t}
-      theme={theme}
-      tkey='cdnHost'
-      value=''
-      values={config.hosts}
-      />
     </View>
   );
 };

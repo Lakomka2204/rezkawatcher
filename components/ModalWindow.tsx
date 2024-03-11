@@ -1,8 +1,8 @@
 import { Text, View, Modal } from 'react-native';
-import useAppTheme from '../../hooks/useAppTheme';
+import useAppTheme from '../hooks/useAppTheme';
 import { ReactNode, Ref, forwardRef, useImperativeHandle, useState } from 'react';
-import TouchableCard from '../TouchableCard';
-import useLanguage from '../../hooks/useLanguage';
+import TouchableCard from './TouchableCard';
+import useLanguage from '../hooks/useLanguage';
 
 interface ModalProps {
   title: string
@@ -40,7 +40,7 @@ const ModalWindow = (props: ModalProps, ref: Ref<ModalRef>) => {
           <TouchableCard className='p-2 rounded-b-md'
             onClick={() => setVisible(false)}>
             <Text
-              style={{ color: theme.colors.text }}
+              style={{ color: theme.colors.primary }}
               className='text-center'>{t('close').toUpperCase()}</Text>
           </TouchableCard>
         </View>

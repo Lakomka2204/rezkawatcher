@@ -21,8 +21,10 @@ export default function useLanguage(): [
           ?.languageCode ??
         i18n.language;
         await i18n.changeLanguage(defaultLang)
-        if (!storedLocale)
+        if (!storedLocale) {
+          console.log('no stored lang, setting',defaultLang,'available',getLocales().map(x=> x.languageCode));
           setStoredLocale(defaultLang);
+        }
     }
     reload();
   }, [storedLocale]);
