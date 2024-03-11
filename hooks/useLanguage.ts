@@ -1,7 +1,7 @@
 import {getLocales} from 'react-native-localize';
 import {useMMKVString} from 'react-native-mmkv';
 import config from '../config';
-import {useEffect, useMemo, useState} from 'react';
+import {useEffect} from 'react';
 import i18n from '../i18n';
 import { useTranslation } from 'react-i18next';
 type TFunction = typeof i18n.t;

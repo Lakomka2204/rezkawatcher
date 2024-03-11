@@ -1,4 +1,4 @@
-import { Text, View, Modal, TouchableWithoutFeedback, TouchableHighlight, TouchableOpacity, Pressable } from 'react-native';
+import { Text, View, Modal, TouchableOpacity, Pressable } from 'react-native';
 import useAppTheme from '../hooks/useAppTheme';
 import { ReactNode, Ref, forwardRef, useImperativeHandle, useState } from 'react';
 import TouchableCard from './TouchableCard';
@@ -30,8 +30,17 @@ const ModalWindow = (props: ModalProps, ref: Ref<ModalRef>) => {
   }));
   return (
     <Modal transparent animationType='fade' visible={visible} className='flex' onRequestClose={() => setVisible(false)}>
-      <TouchableOpacity className='flex-grow m-auto w-screen' style={{ backgroundColor: '#0006' }} activeOpacity={1} onPress={() => setVisible(false)}>
-        <Pressable className='m-auto rounded-md opacity-100' style={{ backgroundColor: theme.colors.card, minWidth: '60%', maxWidth:'80%' }}>
+      <Pressable className='flex-grow m-auto w-screen' style={{ 
+        backgroundColor: 'rgba(0,0,0,0.5)'
+        }} 
+        needsOffscreenAlphaCompositing
+        renderToHardwareTextureAndroid
+        onPress={() => setVisible(false)}>
+        <Pressable className='m-auto rounded-md' style={{ 
+          backgroundColor: theme.colors.card, 
+          minWidth: '60%', 
+          maxWidth:'80%'}}
+          >
           <Text style={{ color: theme.colors.text }} className='text-lg p-2 text-center'>{props.title}</Text>
           <View
             className='border-y p-2'
@@ -45,7 +54,7 @@ const ModalWindow = (props: ModalProps, ref: Ref<ModalRef>) => {
               className='text-center'>{t('close').toUpperCase()}</Text>
           </TouchableCard>
         </Pressable>
-      </TouchableOpacity>
+      </Pressable>
     </Modal>
   );
 };
