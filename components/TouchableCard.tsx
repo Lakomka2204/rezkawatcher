@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Text, View, StyleSheet, Animated, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
+import { StyleSheet, Animated, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
 
 interface TouchableCardProps {
   children: ReactNode

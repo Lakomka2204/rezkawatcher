@@ -1,33 +1,28 @@
 import axios, { AxiosError } from 'axios';
-import { Text, View, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { Text, View, ActivityIndicator } from 'react-native';
 import { AsyncState } from '../../../utils/types';
 import { useEffect, useState } from 'react';
-import useAppTheme from '../../../hooks/useAppTheme';
-import { useTranslation } from 'react-i18next';
 import TouchableCard from '../../TouchableCard';
+import i18n from '../../../i18n';
+import { Theme } from '@react-navigation/native';
 
 interface HostProps {
   host: string,
   onSelect: (value: string) => void
   refresh: boolean
+  t: typeof i18n.t
+  theme: Theme
 }
 
-const Host = (props: HostProps) => {
+const Host = ({ host, onSelect, refresh, t, theme }: HostProps) => {
   const [state, setState] = useState<AsyncState>('idle');
   const [pingMs, setPing] = useState(0);
-  const { t } = useTranslation();
-  const [{ theme }] = useAppTheme();
-  const styles = StyleSheet.create({
-    text: {
-      color: theme.colors.text
-    }
-  });
   useEffect(() => {
     async function fetch() {
       setState('loading')
       const before = Date.now();
       try {
-        await axios.get(props.host, { validateStatus(_) { return true }, timeout: 3000 });
+        await axios.get(host, { validateStatus(_) { return true }, timeout: 3000 });
         setPing(Date.now() - before);
         setState('success');
       }
@@ -38,13 +33,13 @@ const Host = (props: HostProps) => {
 
     }
     fetch();
-  }, [props.refresh]);
+  }, [refresh]);
   function renderStatus() {
     switch (state) {
       case "idle":
-        return <Text style={styles.text}>Idle</Text>
+        return <Text style={{ color: theme.colors.text }}>Idle</Text>
       case "loading":
-        return <Text style={styles.text}>{t('settings.host.connecting')}...</Text>
+        return <Text style={{ color: theme.colors.text }}>{t('settings.host.connecting')}...</Text>
       case "success":
         return <Text className='text-green-500'>{t('settings.host.success', { ms: pingMs })}</Text>
       case 'fail':
@@ -57,10 +52,10 @@ const Host = (props: HostProps) => {
     <TouchableCard
       style={{ backgroundColor: theme.colors.card }}
       className='m-1 p-3 rounded-md'
-      onClick={() => props.onSelect(props.host)}>
+      onClick={() => onSelect(host)}>
       <View className='flex flex-row'>
         <View className='flex flex-col flex-grow'>
-          <Text className='text-lg' style={styles.text}>{props.host}</Text>
+          <Text className='text-lg' style={{ color: theme.colors.text }}>{host}</Text>
           {renderStatus()}
         </View>
         {
