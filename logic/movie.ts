@@ -91,7 +91,7 @@ export class Movie extends PreviewMovie {
     query: string,
   ): Promise<QuickMovie[]> {
     try {
-      const url = new URL('/engine/ajax/search.php', `https://${host}`);
+      const url = new URL('/engine/ajax/search.php', host);
       const res = await axios.post(
         url.toString(),
         {q: query},
